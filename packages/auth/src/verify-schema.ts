@@ -1,7 +1,7 @@
-import { getTableColumns } from '@nala/db';
-import * as schema from '@nala/db/schema';
-import { getAuthTables } from 'better-auth/db';
-import { auth } from './server';
+import { getTableColumns } from "@nala/db";
+import * as schema from "@nala/db/schema";
+import { getAuthTables } from "better-auth/db";
+import { auth } from "./server";
 
 const expected = getAuthTables(auth.options);
 const drizzleTables = schema as Record<string, unknown>;
@@ -21,7 +21,7 @@ for (const [key, table] of Object.entries(expected)) {
     ),
   );
 
-  for (const field of ['id', ...Object.keys(table.fields)]) {
+  for (const field of ["id", ...Object.keys(table.fields)]) {
     if (!columns.has(field)) {
       problems.push(`Drizzle schema missing column: "${key}.${field}".`);
     }
@@ -29,7 +29,7 @@ for (const [key, table] of Object.entries(expected)) {
 }
 
 if (problems.length > 0) {
-  console.error('[@nala/auth] Schema not aligned:');
+  console.error("[@nala/auth] Schema not aligned:");
   for (const problem of problems) console.error(`  - ${problem}`);
   process.exit(1);
 }

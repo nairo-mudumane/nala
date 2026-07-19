@@ -30,7 +30,8 @@ app.get("/me", requireAuth, (c) => c.json({ user: c.var.user }));
 
 ## Uso no Next.js (`web`)
 
-Servidor (Server Component, Server Action) — sem salto HTTP:
+Servidor (Server Component, Server Action) — via HTTP para o `core`,
+memoizado por pedido:
 
 ```ts
 import { getSession, requireSession } from "@/lib/auth";
@@ -54,9 +55,14 @@ await authClient.signOut();
 
 ## Variáveis de ambiente
 
-Vivem no `.env` **da raiz** do monorepo (ver `.env.example`):
+Vivem no `.env` **da raiz** do monorepo (ver `.env.example`; o `web` lê-o por
+um symlink `web/.env → ../.env` criado no `postinstall`):
 `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, `AUTH_TRUSTED_ORIGINS`,
 `NEXT_PUBLIC_AUTH_URL` e, opcionalmente, `AUTH_COOKIE_DOMAIN`.
+
+> **O `web` nunca importa `@nala/auth` (raiz) nem `@nala/db` em runtime.** O
+> Next corre em Node e o `@nala/db` usa `drizzle-orm/bun-sql`, que precisa do
+> módulo nativo `bun:sql`. Importar tipos com `import type` é seguro.
 
 ## Alterar a config
 

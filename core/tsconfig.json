@@ -1,5 +1,5 @@
 {
-  "extends": "@nala/typescript-config/base.json",
+  "extends": "@nala/typescript-config/library.json",
   "compilerOptions": {
     "types": ["bun"],
     "noEmit": true

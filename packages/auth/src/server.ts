@@ -1,17 +1,17 @@
-import { db, account, session, user, verification } from '@nala/db';
-import { betterAuth } from 'better-auth';
-import { drizzleAdapter } from 'better-auth/adapters/drizzle';
-import { nanoid } from 'nanoid';
-import { AUTH_BASE_URL, TRUSTED_ORIGINS, env } from './env';
+import { db, account, session, user, verification } from "@nala/db";
+import { betterAuth } from "better-auth";
+import { drizzleAdapter } from "better-auth/adapters/drizzle";
+import { nanoid } from "nanoid";
+import { AUTH_BASE_URL, TRUSTED_ORIGINS, env } from "./env";
 
 export const auth = betterAuth({
-  appName: 'Nala',
+  appName: "Nala",
   baseURL: AUTH_BASE_URL,
   secret: env.BETTER_AUTH_SECRET,
   trustedOrigins: TRUSTED_ORIGINS,
 
   database: drizzleAdapter(db, {
-    provider: 'pg',
+    provider: "pg",
     schema: { user, session, account, verification },
   }),
 
@@ -21,7 +21,7 @@ export const auth = betterAuth({
     password: {
       hash: (password) =>
         Bun.password.hash(password, {
-          algorithm: 'argon2id',
+          algorithm: "argon2id",
           memoryCost: 65536,
           timeCost: 3,
         }),
@@ -50,5 +50,5 @@ export const auth = betterAuth({
 });
 
 export type Auth = typeof auth;
-export type AuthSession = Auth['$Infer']['Session'];
-export type AuthUser = AuthSession['user'];
+export type AuthSession = Auth["$Infer"]["Session"];
+export type AuthUser = AuthSession["user"];

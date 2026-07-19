@@ -1,17 +1,27 @@
-import 'server-only';
+import "server-only";
 
-import { auth } from '@nala/auth';
-import { headers } from 'next/headers';
-import { redirect } from 'next/navigation';
+import type { AuthSession } from "@nala/auth";
+import { AUTH_BASE_URL } from "@nala/auth/env";
+import { headers } from "next/headers";
+import { redirect } from "next/navigation";
+import { cache } from "react";
 
-/** Sessão atual, ou `null` se o pedido não estiver autenticado. */
-export async function getSession() {
-  return auth.api.getSession({ headers: await headers() });
-}
+export const getSession = cache(async (): Promise<AuthSession | null> => {
+  const cookie = (await headers()).get("cookie");
+  if (!cookie) return null;
 
-/** Sessão atual, redirecionando para `/sign-in` se não houver. */
+  const response = await fetch(`${AUTH_BASE_URL}/api/auth/get-session`, {
+    headers: { cookie },
+    cache: "no-store",
+  });
+
+  if (!response.ok) return null;
+
+  return (await response.json()) as AuthSession | null;
+});
+
 export async function requireSession() {
   const session = await getSession();
-  if (!session) redirect('/sign-in');
+  if (!session) redirect("/sign-in");
   return session;
 }

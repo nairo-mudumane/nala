@@ -26,7 +26,8 @@
     "lint:core": "biome lint core",
     "format": "biome format --write .",
     "check": "biome check --write .",
-    "typecheck": "turbo typecheck"
+    "typecheck": "turbo typecheck",
+    "postinstall": "test -f .env && ln -sfn ../.env web/.env || true"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.4",

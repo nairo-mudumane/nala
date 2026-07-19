@@ -30,8 +30,13 @@ nala/
 
 Há **um único `.env` na raiz** para todo o monorepo (`cp .env.example .env`).
 O `core` e os scripts de `packages/*` consomem-no via `bun --env-file=...`; o
-`web` carrega-o em `next.config.ts` com `loadEnvConfig`. Não criar `.env` por
-pacote.
+`web` lê-o pelo carregamento nativo do Next através de um symlink
+`web/.env → ../.env`, criado automaticamente pelo `postinstall`. Não criar
+`.env` com conteúdo próprio por pacote.
+
+> O `bun --env-file` **não** funciona para o `web`: o `next dev` arranca um
+> servidor Node que não herda essas variáveis (verificado empiricamente). O
+> symlink é o que faz o Next carregá-las nativamente.
 
 ### 1.2 Convenções de workspaces
 
@@ -84,7 +89,7 @@ Os componentes shadcn são **código-fonte** que vive no pacote `@nala/ui` (`pac
 Toda a camada de dados vive no pacote **`@nala/db`** (`packages/db`): configuração do **[Drizzle ORM](https://orm.drizzle.team)** (`drizzle-orm` fixado em `0.45.2`, `drizzle-kit` em `0.31.10`), a **conexão ao PostgreSQL (18)** e **todos os schemas**. Nenhum outro pacote define schemas ou abre conexões à BD — importam sempre de `@nala/db`.
 
 - **Driver:** usa o PostgreSQL nativo do Bun via `drizzle-orm/bun-sql` (`Bun.SQL`) — **sem** `pg`/`postgres` em runtime. O `pg` existe apenas como `devDependency` para as ferramentas do `drizzle-kit` (`db:push`/`db:studio`); migrações em produção correm com o migrator nativo de Bun.
-- **Conexão:** `DATABASE_URL` é validada em `src/env.ts`. Vive no **`.env` único da raiz** do monorepo (`cp .env.example .env`) — os scripts de BD/`core` passam-no com `--env-file`, e o `web` carrega-o em `next.config.ts` via `loadEnvConfig`.
+- **Conexão:** `DATABASE_URL` é validada em `src/env.ts`. Vive no **`.env` único da raiz** do monorepo (`cp .env.example .env`) — os scripts de BD/`core` passam-no com `--env-file`, e o `web` lê-o via symlink `web/.env` (ver §1.1).
 - **Importar:** `import { db, user, eq } from "@nala/db"` — o pacote reexporta o cliente `db`, os schemas/tipos e os operadores do `drizzle-orm`. Nunca por caminho relativo.
 - **Adicionar uma tabela:** cria `src/schema/<tabela>.ts` e reexporta-a em `src/schema/index.ts` (barril único apontado pelo `drizzle.config.ts` e pelo cliente).
 - **Convenção de nomes:** chaves em `camelCase` no TS → colunas em `snake_case` na BD (`casing: "snake_case"`, definido no cliente e no `drizzle.config.ts`).
@@ -108,9 +113,13 @@ Toda a autenticação vive no pacote **`@nala/auth`** (`packages/auth`), assente
   - `@nala/auth/client` — `authClient` (`better-auth/react`) para Client Components.
 - **No Hono (`core`):** `sessionMiddleware` popula `c.var.user`/`c.var.session`; `requireAuth` protege rotas (401). Ver `/me` em `core/src/index.ts` como exemplo.
 - **No Next.js (`web`):**
-  - Servidor (Server Components / Actions): `getSession()` / `requireSession()` de `web/lib/auth.ts` — falam direto com a BD via `auth.api.getSession()`, sem salto HTTP.
+  - Servidor (Server Components / Actions): `getSession()` / `requireSession()` de `web/lib/auth.ts`. Fazem `fetch` a `core` (`/api/auth/get-session`) reencaminhando os cookies, memoizado por pedido com `cache()` do React.
   - Browser: `authClient.useSession()`, `authClient.signIn.email(...)`, etc., a partir de `@nala/auth/client` (aponta para `NEXT_PUBLIC_AUTH_URL`).
-- **IDs:** `advanced.database.generateId` usa `nanoid(21)`, alinhado com `TABLE_DEFAULTS` de `packages/db/src/utils.ts`. Qualquer tabela nova deve espalhar `...TABLE_DEFAULTS` para herdar `id`/`createdAt`/`updatedAt`.
+
+  > **Nunca importar `@nala/auth` (raiz) nem `@nala/db` dentro do `web`.** O Next corre em **Node** e o `@nala/db` usa `drizzle-orm/bun-sql`, que precisa do módulo nativo `bun:sql` — o import rebenta em runtime com `Cannot find module 'bun:sql'`. Só o `core` (Bun) fala com a BD. Importar **tipos** com `import type` é seguro (é apagado na compilação).
+- **IDs:** `advanced.database.generateId` usa `nanoid(21)`, alinhado com `TABLE_DEFAULTS` de `packages/db/src/utils.ts`. Qualquer tabela nova deve espalhar `...TABLE_DEFAULTS` para herdar `id`/`createdAt`/`updatedAt`. Isto afeta **só os IDs das linhas** — o `token` de sessão continua a ser gerado pelo CSPRNG interno do Better Auth (`generateId(32)`).
+- **Hashing de passwords:** `Bun.password` com `argon2id` (ver `emailAndPassword.password` em `server.ts`), a substituir o `scrypt` por omissão do Better Auth. Depende do runtime Bun — outra razão para o hashing só acontecer no `core`.
+- **Resolução de módulos:** `@nala/auth` e `@nala/db` estendem `@nala/typescript-config/library.json` (`moduleResolution: "Bundler"`) e usam imports relativos **sem extensão**. Com o `.js` do NodeNext o Turbopack não resolve os ficheiros `.ts` e o build do `web` falha com `Module not found`.
 - **Alterar a config do Better Auth** (plugins, campos extra) exige refletir o schema:
   1. edita `packages/auth/src/server.ts`;
   2. corre `bun run auth:verify` (em `packages/auth`) — compara a config com o schema Drizzle e falha se houver tabelas/colunas em falta;

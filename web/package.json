@@ -10,7 +10,6 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@next/env": "16.2.6",
     "@remixicon/react": "^4.9.0",
     "@nala/auth": "workspace:*",
     "@nala/ui": "workspace:*",

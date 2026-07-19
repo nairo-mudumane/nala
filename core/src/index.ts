@@ -6,7 +6,7 @@ import {
   authRoutes,
   requireAuth,
   sessionMiddleware,
-} from "./auth.js";
+} from "./auth";
 
 const app = new Hono<{ Variables: AuthVariables }>();
 
