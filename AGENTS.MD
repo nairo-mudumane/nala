@@ -22,6 +22,7 @@ nala/
 ├── web/                  # aplicação frontend Next.js (package: "web")
 ├── core/                 # backend Hono sobre Bun (package: "core", porta 3001)
 └── packages/
+    ├── db/               # @nala/db — Drizzle + conexão PostgreSQL (v18) + schemas
     ├── ui/               # @nala/ui — componentes shadcn/ui partilhados
     └── typescript-config/# @nala/typescript-config
 ```
@@ -72,9 +73,24 @@ Os componentes shadcn são **código-fonte** que vive no pacote `@nala/ui` (`pac
 - Depois de instalar, importa na app por `@nala/ui/components/<componente>`.
 - **Tooltip:** requer envolver a app com `<TooltipProvider>` em `web/app/layout.tsx`.
 
+### 1.5 Base de dados (`@nala/db`)
+
+Toda a camada de dados vive no pacote **`@nala/db`** (`packages/db`): configuração do **[Drizzle ORM](https://orm.drizzle.team)** (`drizzle-orm` fixado em `0.45.2`, `drizzle-kit` em `0.31.10`), a **conexão ao PostgreSQL (18)** e **todos os schemas**. Nenhum outro pacote define schemas ou abre conexões à BD — importam sempre de `@nala/db`.
+
+- **Driver:** usa o PostgreSQL nativo do Bun via `drizzle-orm/bun-sql` (`Bun.SQL`) — **sem** `pg`/`postgres` em runtime. O `pg` existe apenas como `devDependency` para as ferramentas do `drizzle-kit` (`db:push`/`db:studio`); migrações em produção correm com o migrator nativo de Bun.
+- **Conexão:** `DATABASE_URL` (ver `packages/db/.env.example`) é validada em `src/env.ts`. Copia para `packages/db/.env` (gitignored) antes de correr comandos de BD.
+- **Importar:** `import { db, applications, eq } from "@nala/db"` — o pacote reexporta o cliente `db`, os schemas/tipos e os operadores do `drizzle-orm`. Nunca por caminho relativo.
+- **Adicionar uma tabela:** cria `src/schema/<tabela>.ts` e reexporta-a em `src/schema/index.ts` (barril único apontado pelo `drizzle.config.ts` e pelo cliente).
+- **Convenção de nomes:** chaves em `camelCase` no TS → colunas em `snake_case` na BD (`casing: "snake_case"`, definido no cliente e no `drizzle.config.ts`).
+- **Comandos (correr a partir de `packages/db`):**
+  - `bun run db:generate` — gera migrações SQL a partir dos schemas → `packages/db/drizzle` (commitar).
+  - `bun run db:migrate` — aplica migrações pendentes (migrator nativo de Bun, sem `pg`).
+  - `bun run db:push` — sincroniza o schema direto na BD (dev/prototipagem).
+  - `bun run db:studio` — abre o Drizzle Studio.
+
 <!-- BEGIN:nextjs-agent-rules -->
 
-### 1.5 Esta NÃO é a Next.js que conheces
+### 1.6 Esta NÃO é a Next.js que conheces
 
 Esta versão tem breaking changes — APIs, convenções e estrutura de ficheiros podem diferir do teu conhecimento de treino. Lê o guia relevante em `web/node_modules/next/dist/docs/` antes de escrever código. Presta atenção a avisos de deprecação.
 <!-- END:nextjs-agent-rules -->
