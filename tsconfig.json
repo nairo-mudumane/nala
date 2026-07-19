@@ -1,0 +1,4 @@
+{
+  "extends": "@nala/typescript-config/base.json"
+}
+

@@ -1,0 +1,28 @@
+{
+  "name": "nala",
+  "version": "0.0.1",
+  "private": true,
+  "packageManager": "bun@1.3.3",
+  "engines": {
+    "node": ">=20"
+  },
+  "workspaces": [
+    "web",
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "turbo build",
+    "dev": "turbo dev",
+    "lint": "turbo lint",
+    "format": "turbo format",
+    "typecheck": "turbo typecheck"
+  },
+  "devDependencies": {
+    "@nala/eslint-config": "workspace:*",
+    "@nala/typescript-config": "workspace:*",
+    "prettier": "^3.8.3",
+    "prettier-plugin-tailwindcss": "^0.8.0",
+    "turbo": "^2.9.18",
+    "typescript": "^5"
+  }
+}
