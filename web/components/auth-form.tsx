@@ -27,7 +27,7 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 
 /** Where a successful sign-in lands. */
-const AFTER_SIGN_IN = "/jd";
+const AFTER_SIGN_IN = "/jobs";
 
 /** This component's own route — used to bounce errors back here. */
 const SELF = "/get-started";
