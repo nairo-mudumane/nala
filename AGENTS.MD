@@ -51,6 +51,8 @@ per-package `.env` with its own contents.
 
 - `bun install` — installs/relinks the whole workspace.
 - `bun run dev` — starts the app in dev mode (turbo).
+
+> **Restart `bun run dev` after any workspace change** — adding or removing a `packages/*` package, or deleting/renaming a module. `core` runs under `bun --hot`, which patches modules in place but does **not** re-resolve the dependency graph: a long-running process keeps a stale graph and then throws at runtime. The symptom is misleading — endpoints return **`500` on every request** while the exact same code in a freshly started process works fine. If something breaks right after a package-level change, restart before debugging anything else.
 - `bun run build` — production build of all packages.
 - `bun run typecheck` — via turbo, across all packages.
 - `bun run lint` — Biome analyzes the whole monorepo (a single pass from the root, without turbo).
