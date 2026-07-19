@@ -1,0 +1,36 @@
+{
+  "name": "@nala/auth",
+  "version": "0.0.0",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "auth:verify": "bun --env-file=../../.env run src/verify-schema.ts"
+  },
+  "exports": {
+    ".": "./src/index.ts",
+    "./server": "./src/server.ts",
+    "./client": "./src/client.ts",
+    "./env": "./src/env.ts"
+  },
+  "devDependencies": {
+    "@nala/typescript-config": "workspace:*",
+    "@types/bun": "^1.3.3",
+    "@types/react": "^19",
+    "react": "19.2.4",
+    "typescript": "^5"
+  },
+  "dependencies": {
+    "@nala/db": "workspace:*",
+    "better-auth": "1.6.23",
+    "nanoid": "^6.0.0"
+  },
+  "peerDependencies": {
+    "react": "19.2.4"
+  },
+  "peerDependenciesMeta": {
+    "react": {
+      "optional": true
+    }
+  }
+}

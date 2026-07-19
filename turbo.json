@@ -1,6 +1,15 @@
 {
   "$schema": "https://turbo.build/schema.json",
   "ui": "tui",
+  "globalDependencies": [".env"],
+  "globalEnv": [
+    "DATABASE_URL",
+    "BETTER_AUTH_SECRET",
+    "BETTER_AUTH_URL",
+    "AUTH_TRUSTED_ORIGINS",
+    "AUTH_COOKIE_DOMAIN",
+    "NEXT_PUBLIC_AUTH_URL"
+  ],
   "tasks": {
     "build": {
       "dependsOn": ["^build"],

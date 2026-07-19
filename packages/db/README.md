@@ -9,19 +9,20 @@ dependência de `pg`/`postgres`.
 ## Uso
 
 ```ts
-import { db, applications, eq } from "@nala/db";
+import { db, user, eq } from "@nala/db";
 
-const rows = await db.select().from(applications);
+const rows = await db.select().from(user);
 
-await db.insert(applications).values({ company: "Acme", role: "SWE" });
+const [row] = await db.select().from(user).where(eq(user.email, "a@b.com"));
 ```
 
 ## Setup
 
-1. Copia o exemplo de ambiente e preenche a `DATABASE_URL`:
+1. Copia o exemplo de ambiente **na raiz do monorepo** e preenche a
+   `DATABASE_URL` (há um único `.env` para todo o workspace):
 
    ```sh
-   cp packages/db/.env.example packages/db/.env
+   cp .env.example .env
    ```
 
 2. Gera e aplica migrações (correr dentro de `packages/db`):
@@ -52,7 +53,13 @@ packages/db/
     ├── client.ts       # cliente Drizzle sobre Bun.SQL
     ├── env.ts          # validação de DATABASE_URL
     └── schema/         # um ficheiro por tabela + barril (index.ts)
+        └── auth.ts     # tabelas do Better Auth (geridas por @nala/auth)
 ```
+
+> As tabelas de autenticação (`user`, `session`, `account`, `verification`)
+> vivem aqui, mas o seu formato é ditado pelo `@nala/auth`. Depois de mexer na
+> config do Better Auth, corre `bun run auth:verify` em `packages/auth` antes
+> de gerar migrações.
 
 Para adicionar uma tabela: cria `src/schema/<tabela>.ts` e reexporta-a em
 `src/schema/index.ts`.

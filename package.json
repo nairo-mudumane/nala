@@ -35,6 +35,7 @@
     "typescript": "^5"
   },
   "dependencies": {
-    "@nala/db": "workspace:*"
+    "@nala/db": "workspace:*",
+    "nanoid": "^6.0.0"
   }
 }

@@ -23,9 +23,15 @@ nala/
 ├── core/                 # backend Hono sobre Bun (package: "core", porta 3001)
 └── packages/
     ├── db/               # @nala/db — Drizzle + conexão PostgreSQL (v18) + schemas
+    ├── auth/             # @nala/auth — Better Auth (servidor + cliente React)
     ├── ui/               # @nala/ui — componentes shadcn/ui partilhados
     └── typescript-config/# @nala/typescript-config
 ```
+
+Há **um único `.env` na raiz** para todo o monorepo (`cp .env.example .env`).
+O `core` e os scripts de `packages/*` consomem-no via `bun --env-file=...`; o
+`web` carrega-o em `next.config.ts` com `loadEnvConfig`. Não criar `.env` por
+pacote.
 
 ### 1.2 Convenções de workspaces
 
@@ -78,8 +84,8 @@ Os componentes shadcn são **código-fonte** que vive no pacote `@nala/ui` (`pac
 Toda a camada de dados vive no pacote **`@nala/db`** (`packages/db`): configuração do **[Drizzle ORM](https://orm.drizzle.team)** (`drizzle-orm` fixado em `0.45.2`, `drizzle-kit` em `0.31.10`), a **conexão ao PostgreSQL (18)** e **todos os schemas**. Nenhum outro pacote define schemas ou abre conexões à BD — importam sempre de `@nala/db`.
 
 - **Driver:** usa o PostgreSQL nativo do Bun via `drizzle-orm/bun-sql` (`Bun.SQL`) — **sem** `pg`/`postgres` em runtime. O `pg` existe apenas como `devDependency` para as ferramentas do `drizzle-kit` (`db:push`/`db:studio`); migrações em produção correm com o migrator nativo de Bun.
-- **Conexão:** `DATABASE_URL` (ver `packages/db/.env.example`) é validada em `src/env.ts`. Copia para `packages/db/.env` (gitignored) antes de correr comandos de BD.
-- **Importar:** `import { db, applications, eq } from "@nala/db"` — o pacote reexporta o cliente `db`, os schemas/tipos e os operadores do `drizzle-orm`. Nunca por caminho relativo.
+- **Conexão:** `DATABASE_URL` é validada em `src/env.ts`. Vive no **`.env` único da raiz** do monorepo (`cp .env.example .env`) — os scripts de BD/`core` passam-no com `--env-file`, e o `web` carrega-o em `next.config.ts` via `loadEnvConfig`.
+- **Importar:** `import { db, user, eq } from "@nala/db"` — o pacote reexporta o cliente `db`, os schemas/tipos e os operadores do `drizzle-orm`. Nunca por caminho relativo.
 - **Adicionar uma tabela:** cria `src/schema/<tabela>.ts` e reexporta-a em `src/schema/index.ts` (barril único apontado pelo `drizzle.config.ts` e pelo cliente).
 - **Convenção de nomes:** chaves em `camelCase` no TS → colunas em `snake_case` na BD (`casing: "snake_case"`, definido no cliente e no `drizzle.config.ts`).
 - **Comandos (correr a partir de `packages/db`):**
@@ -90,7 +96,30 @@ Toda a camada de dados vive no pacote **`@nala/db`** (`packages/db`): configura�
 
 <!-- BEGIN:nextjs-agent-rules -->
 
-### 1.6 Esta NÃO é a Next.js que conheces
+### 1.6 Autenticação (`@nala/auth`)
+
+Toda a autenticação vive no pacote **`@nala/auth`** (`packages/auth`), assente no **[Better Auth](https://better-auth.com)** (`better-auth` fixado em `1.6.23`) com o `drizzleAdapter` sobre o `@nala/db`.
+
+**Separação de responsabilidades:** as **tabelas** (`user`, `session`, `account`, `verification`) vivem em `@nala/db` (`src/schema/auth.ts`), a **lógica** vive em `@nala/auth`. Assim há um único `drizzle.config.ts` e uma única pasta de migrações em todo o monorepo — nunca criar um segundo setup de Drizzle dentro de `packages/auth`.
+
+- **Servidor de auth:** é a app `core` (Hono, porta 3001). Monta o handler em `/api/auth/*` (`core/src/auth.ts`) e é o único endpoint HTTP de autenticação. O `web` **não** tem `app/api/auth/[...all]/route.ts`.
+- **Entradas do pacote:**
+  - `@nala/auth` — instância `auth` + tipos (`Auth`, `AuthSession`, `AuthUser`). **Só servidor.**
+  - `@nala/auth/client` — `authClient` (`better-auth/react`) para Client Components.
+- **No Hono (`core`):** `sessionMiddleware` popula `c.var.user`/`c.var.session`; `requireAuth` protege rotas (401). Ver `/me` em `core/src/index.ts` como exemplo.
+- **No Next.js (`web`):**
+  - Servidor (Server Components / Actions): `getSession()` / `requireSession()` de `web/lib/auth.ts` — falam direto com a BD via `auth.api.getSession()`, sem salto HTTP.
+  - Browser: `authClient.useSession()`, `authClient.signIn.email(...)`, etc., a partir de `@nala/auth/client` (aponta para `NEXT_PUBLIC_AUTH_URL`).
+- **IDs:** `advanced.database.generateId` usa `nanoid(21)`, alinhado com `TABLE_DEFAULTS` de `packages/db/src/utils.ts`. Qualquer tabela nova deve espalhar `...TABLE_DEFAULTS` para herdar `id`/`createdAt`/`updatedAt`.
+- **Alterar a config do Better Auth** (plugins, campos extra) exige refletir o schema:
+  1. edita `packages/auth/src/server.ts`;
+  2. corre `bun run auth:verify` (em `packages/auth`) — compara a config com o schema Drizzle e falha se houver tabelas/colunas em falta;
+  3. atualiza `packages/db/src/schema/auth.ts` até passar;
+  4. corre `bun run db:generate` e `bun run db:migrate` (em `packages/db`).
+
+  > O `@better-auth/cli generate` **não** funciona neste projeto: carrega a config com jiti/Node e rebenta ao importar `drizzle-orm/bun-sql` (depende do módulo nativo `bun:sql`). Usar `auth:verify` no lugar dele.
+
+### 1.7 Esta NÃO é a Next.js que conheces
 
 Esta versão tem breaking changes — APIs, convenções e estrutura de ficheiros podem diferir do teu conhecimento de treino. Lê o guia relevante em `web/node_modules/next/dist/docs/` antes de escrever código. Presta atenção a avisos de deprecação.
 <!-- END:nextjs-agent-rules -->
