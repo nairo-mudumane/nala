@@ -1,5 +1,5 @@
 {
-  "id": "5f5e7a3b-d17c-4268-8435-ff5e9e1bcda8",
+  "id": "a6c0aa3a-0b15-495b-a18f-594eaf1a6a2e",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -11,7 +11,7 @@
         "id": {
           "name": "id",
           "type": "text",
-          "primaryKey": false,
+          "primaryKey": true,
           "notNull": true
         },
         "created_at": {
@@ -134,7 +134,7 @@
         "id": {
           "name": "id",
           "type": "text",
-          "primaryKey": false,
+          "primaryKey": true,
           "notNull": true
         },
         "created_at": {
@@ -235,7 +235,7 @@
         "id": {
           "name": "id",
           "type": "text",
-          "primaryKey": false,
+          "primaryKey": true,
           "notNull": true
         },
         "created_at": {
@@ -301,7 +301,7 @@
         "id": {
           "name": "id",
           "type": "text",
-          "primaryKey": false,
+          "primaryKey": true,
           "notNull": true
         },
         "created_at": {

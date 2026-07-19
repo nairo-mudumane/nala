@@ -12,7 +12,7 @@ import {
   rootRoutes,
 } from "./routes";
 
-const PORT = 3001;
+const PORT = Number(process.env.PORT ?? 3001);
 
 const app = new Hono<{ Variables: AuthVariables }>();
 
@@ -28,11 +28,11 @@ app.use(
 );
 
 app.route("/", authRoutes);
+app.route("/", healthRoutes);
 
 app.use("*", sessionMiddleware);
 
 app.route("/", rootRoutes);
-app.route("/", healthRoutes);
 app.route("/", meRoutes);
 
 mountDocs(app);

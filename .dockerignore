@@ -1,0 +1,32 @@
+# VCS / tooling
+.git
+.gitignore
+.github
+.turbo
+.claude
+.agents
+*.md
+!README.md
+
+# Segredos — CRÍTICO. Um .env dentro da imagem seria carregado pelo Next e
+# sobreporia silenciosamente as variáveis injetadas pelo Coolify.
+# `web/.env` é um symlink para ../.env criado pelo postinstall: se for copiado
+# fica pendurado dentro da imagem e o `next build` rebenta com ENOENT ao fazer
+# stat dele. Daí os padrões **/ e não apenas os da raiz.
+**/.env
+**/.env.*
+!.env.example
+
+# Artefactos instalados/compilados — reconstruídos sempre dentro da imagem.
+# **/node_modules evita arrastar binários nativos darwin-arm64 do host.
+node_modules
+**/node_modules
+web/.next
+core/dist
+packages/*/dist
+
+# Ruído local
+.DS_Store
+*.log
+.vscode
+.idea
