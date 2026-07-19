@@ -18,7 +18,8 @@ nala/
 ├── package.json          # raiz do workspace (bun@1.3.3), scripts turbo
 ├── turbo.json            # pipeline de tasks (build, dev, lint, format, typecheck)
 ├── tsconfig.json         # estende @nala/typescript-config
-├── web/                  # aplicação Next.js (package: "web")
+├── web/                  # aplicação frontend Next.js (package: "web")
+├── core/                 # backend Hono sobre Bun (package: "core", porta 3001)
 └── packages/
     ├── ui/               # @nala/ui — componentes shadcn/ui partilhados
     ├── eslint-config/    # @nala/eslint-config
@@ -38,6 +39,11 @@ nala/
 - `bun run dev` — arranca a app em modo dev (turbo).
 - `bun run build` — build de produção de todos os pacotes.
 - `bun run lint` / `bun run format` / `bun run typecheck` — via turbo, em todos os pacotes.
+
+Apps:
+
+- **`web`** — frontend Next.js (porta 3000).
+- **`core`** — backend Hono a correr sobre o runtime Bun (porta 3001). Ponto de entrada `core/src/index.ts` exporta `{ port, fetch }` (servido diretamente pelo Bun, sem adaptador). Corre isolado com `bun run --hot core/src/index.ts` ou via `bun run dev` (turbo arranca ambas as apps).
 
 ### 1.4 Componentes shadcn/ui
 
