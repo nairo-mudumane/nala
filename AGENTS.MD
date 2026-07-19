@@ -176,3 +176,5 @@ All authentication lives in the **`@nala/auth`** package (`packages/auth`), buil
 
 This version has breaking changes — APIs, conventions, and file structure may differ from your training knowledge. Read the relevant guide in `web/node_modules/next/dist/docs/` before writing code. Pay attention to deprecation warnings.
 <!-- END:nextjs-agent-rules -->
+
+NOTE: after each instruction, run `bun format` in project's root directory

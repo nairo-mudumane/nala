@@ -31,7 +31,16 @@
 - Instant retrieval of the process history for pre-interview support.
 - Direct comparison between the submitted profile and the role's requirements.
 
-## 3. Quality and Output Standards
+### 2.4 Entry Point (Welcome Page)
+
+- Public welcome page (`/`) presenting the value proposition, with a prominent **"Get started"** call to action leading to the login page (`/login`).
+
+## 3. Internationalization
+
+- The interface ships **in English only** for now.
+- A **language switcher** is planned, with support for **English** and **Portuguese**. All user-facing copy should therefore be written with future extraction to translation files in mind (no strings buried in logic).
+
+## 4. Quality and Output Standards
 
 - **ATS Compatibility:** Documents optimized for reading by any screening AI, with no structural errors.
 - **Editability:** Clean, hierarchical layout, allowing direct conversion to editing formats (.docx) without loss of formatting or use of complex elements (text boxes / floating tables).
