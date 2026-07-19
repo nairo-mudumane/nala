@@ -4,8 +4,6 @@
   "type": "module",
   "private": true,
   "scripts": {
-    "lint": "eslint",
-    "format": "prettier --write \"**/*.{ts,tsx}\"",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
@@ -38,9 +36,7 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "@nala/eslint-config": "workspace:*",
     "@nala/typescript-config": "workspace:*",
-    "eslint": "^9",
     "tailwindcss": "^4",
     "typescript": "^5"
   },

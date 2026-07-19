@@ -16,13 +16,13 @@ O projeto é um **monorepo gerido com [Bun workspaces](https://bun.com/docs/inst
 ```
 nala/
 ├── package.json          # raiz do workspace (bun@1.3.3), scripts turbo
-├── turbo.json            # pipeline de tasks (build, dev, lint, format, typecheck)
+├── turbo.json            # pipeline de tasks (build, dev, typecheck)
+├── biome.json            # lint + format (Biome) — config única para todo o monorepo
 ├── tsconfig.json         # estende @nala/typescript-config
 ├── web/                  # aplicação frontend Next.js (package: "web")
 ├── core/                 # backend Hono sobre Bun (package: "core", porta 3001)
 └── packages/
     ├── ui/               # @nala/ui — componentes shadcn/ui partilhados
-    ├── eslint-config/    # @nala/eslint-config
     └── typescript-config/# @nala/typescript-config
 ```
 
@@ -38,7 +38,22 @@ nala/
 - `bun install` — instala/religa todo o workspace.
 - `bun run dev` — arranca a app em modo dev (turbo).
 - `bun run build` — build de produção de todos os pacotes.
-- `bun run lint` / `bun run format` / `bun run typecheck` — via turbo, em todos os pacotes.
+- `bun run typecheck` — via turbo, em todos os pacotes.
+- `bun run lint` — Biome analisa todo o monorepo (uma passagem única a partir da raiz, sem turbo).
+- `bun run format` — Biome formata e escreve (`biome format --write .`).
+- `bun run check` — Biome corre lint + format + fixes seguros num só comando (`biome check --write .`).
+
+### 1.3.1 Lint & Format (Biome)
+
+O lint e a formatação são geridos por **[Biome](https://biomejs.dev)** (`@biomejs/biome`, fixado em `2.5.4`), com **uma config única na raiz** (`biome.json`) para todo o monorepo — substitui ESLint + Prettier. Convenções impostas:
+
+- Ponto e vírgula (`;`) no fim de cada linha (`semicolons: "always"`).
+- Aspas duplas, incluindo em importações (`quoteStyle: "double"`).
+- Proíbe variáveis e importações não utilizadas (`noUnusedVariables`/`noUnusedImports` como `error`).
+- **Não** reordena importações (`assist.actions.source.organizeImports: "off"`).
+- Indentação de 2 espaços, largura de linha 80, fim de linha `lf`.
+
+Biome respeita o `.gitignore` (`vcs.useIgnoreFile`), pelo que `node_modules`, `.next`, `dist` e `.turbo` são ignorados automaticamente. Não há configs por pacote — corre sempre a partir da raiz.
 
 Apps:
 
@@ -58,6 +73,7 @@ Os componentes shadcn são **código-fonte** que vive no pacote `@nala/ui` (`pac
 - **Tooltip:** requer envolver a app com `<TooltipProvider>` em `web/app/layout.tsx`.
 
 <!-- BEGIN:nextjs-agent-rules -->
+
 ### 1.5 Esta NÃO é a Next.js que conheces
 
 Esta versão tem breaking changes — APIs, convenções e estrutura de ficheiros podem diferir do teu conhecimento de treino. Lê o guia relevante em `web/node_modules/next/dist/docs/` antes de escrever código. Presta atenção a avisos de deprecação.
