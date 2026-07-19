@@ -1,6 +1,7 @@
 import { db, account, session, user, verification } from "@nala/db";
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
+import { openAPI } from "better-auth/plugins";
 import { nanoid } from "nanoid";
 import { AUTH_BASE_URL, TRUSTED_ORIGINS, env } from "./env";
 
@@ -37,6 +38,8 @@ export const auth = betterAuth({
       maxAge: 60 * 5,
     },
   },
+
+  plugins: [openAPI({ disableDefaultReference: true })],
 
   advanced: {
     database: {

@@ -1,15 +1,10 @@
 import { type AuthSession, auth } from "@nala/auth";
 import { createMiddleware } from "hono/factory";
-import { Hono } from "hono";
 
 export type AuthVariables = {
   user: AuthSession["user"] | null;
   session: AuthSession["session"] | null;
 };
-
-export const authRoutes = new Hono().on(["GET", "POST"], "/api/auth/*", (c) =>
-  auth.handler(c.req.raw),
-);
 
 export const sessionMiddleware = createMiddleware<{
   Variables: AuthVariables;

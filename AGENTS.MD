@@ -72,6 +72,49 @@ Apps:
 - **`web`** — frontend Next.js (porta 3000).
 - **`core`** — backend Hono a correr sobre o runtime Bun (porta 3001). Ponto de entrada `core/src/index.ts` exporta `{ port, fetch }` (servido diretamente pelo Bun, sem adaptador). Corre isolado com `bun run --hot core/src/index.ts` ou via `bun run dev` (turbo arranca ambas as apps).
 
+### 1.3.2 Documentação da API (OpenAPI + Scalar)
+
+O `core` publica um spec **OpenAPI 3.1** e serve a UI do **[Scalar](https://scalar.com)**:
+
+- `GET /docs` — UI do Scalar (`@scalar/hono-api-reference`).
+- `GET /openapi.json` — spec gerado em runtime.
+
+O spec resulta da **fusão de duas fontes** (`core/src/openapi.ts`):
+
+1. As rotas próprias do `core`, anotadas com `describeRoute()` do **`hono-openapi`** (v1) e schemas **Zod v4** de `core/src/schemas.ts` (via `resolver()`).
+2. Os endpoints do Better Auth, obtidos de `auth.api.generateOpenAPISchema()` (plugin `openAPI()` em `packages/auth/src/server.ts`). Os paths vêm relativos à base de auth, por isso são prefixados com `/api/auth`, re-tagueados como `Autenticação`, e os schemas são renomeados com o prefixo `Auth` (`User` → `AuthUser`) para não colidirem com os das rotas próprias — os `$ref` são reescritos em conjunto.
+
+> O plugin do Better Auth corre com `disableDefaultReference: true`: a referência dele em `/api/auth/reference` fica desligada para haver **uma única UI** (`/docs`) com toda a API. O catch-all `/api/auth/*` é excluído do `generateSpecs` porque os paths reais entram pelo fragmento de auth.
+
+**Ao adicionar uma rota nova ao `core`:** cria `core/src/routes/<rota>.ts` (ver §1.3.3), envolve o handler com `describeRoute({ tags, summary, responses })` e usa uma `tag` **já declarada** em `DOCUMENTATION.tags` (`routes/docs.ts`) — uma tag não declarada aparece como grupo solto no Scalar. Sem `describeRoute` a rota aparece no spec sem documentação.
+
+`hono-openapi` declara as suas dependências como **peer deps** — `@hono/standard-validator`, `@standard-community/standard-json`, `@standard-community/standard-openapi`, `openapi-types`, `@types/json-schema` estão explícitas no `core/package.json`. Sem elas o arranque rebenta com `Cannot find module '@hono/standard-validator'`.
+
+### 1.3.3 Organização das rotas do `core`
+
+**Todas as rotas vivem em `core/src/routes/*`, uma por ficheiro.** O `core/src/index.ts` limita-se a criar a app, aplicar middleware global (CORS, sessão) e montar os routers — nunca define handlers.
+
+```
+core/src/
+├── index.ts          # app + middleware global + montagem dos routers
+├── auth.ts           # middleware de auth (sessionMiddleware, requireAuth) — não são rotas
+├── schemas.ts        # schemas Zod partilhados por várias rotas (ex.: ErrorSchema)
+└── routes/
+    ├── index.ts      # barril — reexporta todos os routers
+    ├── root.ts       # GET /
+    ├── health.ts     # GET /health
+    ├── me.ts         # GET /me (protegida)
+    ├── auth.ts       # catch-all /api/auth/* (handler do Better Auth)
+    └── docs.ts       # GET /docs (Scalar) + GET /openapi.json
+```
+
+- Cada ficheiro exporta um `new Hono()` com o nome `<rota>Routes`, montado em `index.ts` com `app.route("/", <rota>Routes)` — o path completo é declarado dentro do próprio router.
+- Rotas protegidas tipam o router como `new Hono<{ Variables: AuthVariables }>()` e aplicam `requireAuth` no handler.
+- **Schemas Zod específicos de uma rota vivem no ficheiro dessa rota**; só o que é partilhado vai para `core/src/schemas.ts`.
+- Depois de adicionar um router, reexporta-o em `routes/index.ts`.
+
+> **Ordem de montagem em `index.ts` (importa):** `authRoutes` **antes** do `sessionMiddleware` (senão o handler do Better Auth corre com a sessão já resolvida), e `mountDocs(app)` **por último** — o `generateSpecs` percorre as rotas já registadas na app.
+
 ### 1.4 Componentes shadcn/ui
 
 Os componentes shadcn são **código-fonte** que vive no pacote `@nala/ui` (`packages/ui/src/components`), não uma dependência externa. A versão do CLI está fixada em `shadcn@4.13.1` (ver `packages/ui/package.json`) — usa-a explicitamente para manter consistência.
@@ -117,6 +160,7 @@ Toda a autenticação vive no pacote **`@nala/auth`** (`packages/auth`), assente
   - Browser: `authClient.useSession()`, `authClient.signIn.email(...)`, etc., a partir de `@nala/auth/client` (aponta para `NEXT_PUBLIC_AUTH_URL`).
 
   > **Nunca importar `@nala/auth` (raiz) nem `@nala/db` dentro do `web`.** O Next corre em **Node** e o `@nala/db` usa `drizzle-orm/bun-sql`, que precisa do módulo nativo `bun:sql` — o import rebenta em runtime com `Cannot find module 'bun:sql'`. Só o `core` (Bun) fala com a BD. Importar **tipos** com `import type` é seguro (é apagado na compilação).
+
 - **IDs:** `advanced.database.generateId` usa `nanoid(21)`, alinhado com `TABLE_DEFAULTS` de `packages/db/src/utils.ts`. Qualquer tabela nova deve espalhar `...TABLE_DEFAULTS` para herdar `id`/`createdAt`/`updatedAt`. Isto afeta **só os IDs das linhas** — o `token` de sessão continua a ser gerado pelo CSPRNG interno do Better Auth (`generateId(32)`).
 - **Hashing de passwords:** `Bun.password` com `argon2id` (ver `emailAndPassword.password` em `server.ts`), a substituir o `scrypt` por omissão do Better Auth. Depende do runtime Bun — outra razão para o hashing só acontecer no `core`.
 - **Resolução de módulos:** `@nala/auth` e `@nala/db` estendem `@nala/typescript-config/library.json` (`moduleResolution: "Bundler"`) e usam imports relativos **sem extensão**. Com o `.js` do NodeNext o Turbopack não resolve os ficheiros `.ts` e o build do `web` falha com `Module not found`.

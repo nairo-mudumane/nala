@@ -1,17 +1,21 @@
 import { TRUSTED_ORIGINS } from "@nala/auth";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
+import { type AuthVariables, sessionMiddleware } from "./auth";
 import {
-  type AuthVariables,
   authRoutes,
-  requireAuth,
-  sessionMiddleware,
-} from "./auth";
+  DOCS_PATH,
+  healthRoutes,
+  meRoutes,
+  mountDocs,
+  OPENAPI_JSON_PATH,
+  rootRoutes,
+} from "./routes";
+
+const PORT = 3001;
 
 const app = new Hono<{ Variables: AuthVariables }>();
 
-// O cliente do Better Auth envia cookies cross-origin (web:3000 → core:3001),
-// por isso `credentials` tem de estar ligado e a origem tem de ser explícita.
 app.use(
   "*",
   cors({
@@ -23,19 +27,22 @@ app.use(
   }),
 );
 
-// Handler do Better Auth — tem de vir antes do middleware de sessão.
 app.route("/", authRoutes);
 
 app.use("*", sessionMiddleware);
 
-app.get("/", (c) => c.text("Nala Core API"));
+app.route("/", rootRoutes);
+app.route("/", healthRoutes);
+app.route("/", meRoutes);
 
-app.get("/health", (c) => c.json({ status: "ok" }));
+mountDocs(app);
 
-/** Exemplo de rota protegida — devolve o utilizador da sessão atual. */
-app.get("/me", requireAuth, (c) => c.json({ user: c.var.user }));
+console.log(`  ➜  Docs (Scalar):  http://localhost:${PORT}${DOCS_PATH}`);
+console.log(
+  `  ➜  OpenAPI spec:   http://localhost:${PORT}${OPENAPI_JSON_PATH}`,
+);
 
 export default {
-  port: 3001,
+  port: PORT,
   fetch: app.fetch,
 };
