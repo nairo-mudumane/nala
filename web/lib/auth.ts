@@ -22,6 +22,6 @@ export const getSession = cache(async (): Promise<AuthSession | null> => {
 
 export async function requireSession() {
   const session = await getSession();
-  if (!session) redirect("/sign-in");
+  if (!session) redirect("/get-started");
   return session;
 }

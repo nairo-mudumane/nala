@@ -1,7 +1,8 @@
 import { db, account, session, user, verification } from "@nala/db";
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
-import { openAPI } from "better-auth/plugins";
+import { sendMagicLinkEmail } from "@nala/mailer";
+import { magicLink, openAPI } from "better-auth/plugins";
 import { nanoid } from "nanoid";
 import { AUTH_BASE_URL, TRUSTED_ORIGINS, env } from "./env";
 
@@ -15,6 +16,13 @@ export const auth = betterAuth({
     provider: "pg",
     schema: { user, session, account, verification },
   }),
+
+  account: {
+    accountLinking: {
+      enabled: true,
+      trustedProviders: ["google", "apple"],
+    },
+  },
 
   emailAndPassword: {
     enabled: true,
@@ -39,7 +47,16 @@ export const auth = betterAuth({
     },
   },
 
-  plugins: [openAPI({ disableDefaultReference: true })],
+  plugins: [
+    magicLink({
+      expiresIn: 60 * 5, // 5 minutes
+      // Single-use tokens are hashed at rest, so a leaked DB snapshot does not
+      // hand over live sign-in links.
+      storeToken: "hashed",
+      sendMagicLink: ({ email, url }) => sendMagicLinkEmail({ email, url }),
+    }),
+    openAPI({ disableDefaultReference: true }),
+  ],
 
   advanced: {
     database: {

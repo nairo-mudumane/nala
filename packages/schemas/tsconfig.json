@@ -1,0 +1,11 @@
+{
+  "extends": "@nala/typescript-config/library.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "paths": {
+      "@nala/schemas/*": ["./src/*"]
+    }
+  },
+  "include": ["src/**/*.ts"],
+  "exclude": ["node_modules", "dist"]
+}

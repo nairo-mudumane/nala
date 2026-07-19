@@ -32,20 +32,9 @@ export default function Page() {
           and keeps you ready for the interview — no spreadsheets, no guesswork.
         </p>
 
-        <div className="flex flex-col gap-4 sm:flex-row sm:gap-6">
-          <Button
-            asChild
-            variant="outline"
-            size="lg"
-            className="px-8 py-4 text-base"
-          >
-            <Link href="/login?ref=app">Use existing account</Link>
-          </Button>
-
-          <Button asChild size="lg" className="px-8 py-4 text-base">
-            <Link href="/signup?ref=app">Create new account</Link>
-          </Button>
-        </div>
+        <Button asChild size="lg" className="px-8 py-4 text-base">
+          <Link href="/get-started">Get started</Link>
+        </Button>
 
         <ul className="mt-8 grid gap-6 text-left sm:grid-cols-3">
           {FEATURES.map((feature) => (
