@@ -4,11 +4,11 @@ import { describeRoute } from "hono-openapi";
 export const rootRoutes = new Hono().get(
   "/",
   describeRoute({
-    tags: ["Sistema"],
-    summary: "Raiz da API",
+    tags: ["System"],
+    summary: "API root",
     responses: {
       200: {
-        description: "Nome do serviço.",
+        description: "Service name.",
         content: { "text/plain": { schema: { type: "string" } } },
       },
     },

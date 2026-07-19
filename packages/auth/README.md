@@ -1,43 +1,43 @@
 # @nala/auth
 
-Autenticação do Nala, sobre [Better Auth](https://better-auth.com) + Drizzle
+Nala's authentication, built on [Better Auth](https://better-auth.com) + Drizzle
 (`@nala/db`).
 
-As **tabelas** vivem em `@nala/db` (`src/schema/auth.ts`); aqui vive só a
-**lógica**. Isso mantém um único `drizzle.config.ts` e uma única pasta de
-migrações no monorepo.
+The **tables** live in `@nala/db` (`src/schema/auth.ts`); only the **logic**
+lives here. That keeps a single `drizzle.config.ts` and a single migrations
+folder in the monorepo.
 
-O **servidor de auth é a app `core`** (Hono, porta 3001), que monta o handler em
-`/api/auth/*`. O `web` não expõe rotas de auth.
+The **auth server is the `core` app** (Hono, port 3001), which mounts the handler
+at `/api/auth/*`. `web` does not expose any auth routes.
 
-## Entradas
+## Entry points
 
-| Import                | Onde                      | O quê                                    |
-| --------------------- | ------------------------- | ---------------------------------------- |
-| `@nala/auth`          | servidor (Hono, RSC)      | instância `auth` + tipos                 |
-| `@nala/auth/client`   | browser (Client Component)| `authClient` (`better-auth/react`)       |
+| Import                | Where                      | What                               |
+| --------------------- | -------------------------- | ---------------------------------- |
+| `@nala/auth`          | server (Hono, RSC)         | `auth` instance + types            |
+| `@nala/auth/client`   | browser (Client Component) | `authClient` (`better-auth/react`) |
 
-## Uso no Hono (`core`)
+## Usage in Hono (`core`)
 
 ```ts
 import { authRoutes, requireAuth, sessionMiddleware } from "./auth.js";
 
 app.route("/", authRoutes);      // /api/auth/*
-app.use("*", sessionMiddleware); // popula c.var.user / c.var.session
+app.use("*", sessionMiddleware); // populates c.var.user / c.var.session
 
 app.get("/me", requireAuth, (c) => c.json({ user: c.var.user }));
 ```
 
-## Uso no Next.js (`web`)
+## Usage in Next.js (`web`)
 
-Servidor (Server Component, Server Action) — via HTTP para o `core`,
-memoizado por pedido:
+Server (Server Component, Server Action) — over HTTP to `core`, memoized per
+request:
 
 ```ts
 import { getSession, requireSession } from "@/lib/auth";
 
-const session = await getSession();      // null se não autenticado
-const { user } = await requireSession(); // redireciona para /sign-in
+const session = await getSession();      // null if not authenticated
+const { user } = await requireSession(); // redirects to /sign-in
 ```
 
 Browser:
@@ -53,25 +53,25 @@ await authClient.signIn.email({ email, password });
 await authClient.signOut();
 ```
 
-## Variáveis de ambiente
+## Environment variables
 
-Vivem no `.env` **da raiz** do monorepo (ver `.env.example`; o `web` lê-o por
-um symlink `web/.env → ../.env` criado no `postinstall`):
+They live in the monorepo's **root** `.env` (see `.env.example`; `web` reads it
+through a `web/.env → ../.env` symlink created in `postinstall`):
 `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, `AUTH_TRUSTED_ORIGINS`,
-`NEXT_PUBLIC_AUTH_URL` e, opcionalmente, `AUTH_COOKIE_DOMAIN`.
+`NEXT_PUBLIC_AUTH_URL` and, optionally, `AUTH_COOKIE_DOMAIN`.
 
-> **O `web` nunca importa `@nala/auth` (raiz) nem `@nala/db` em runtime.** O
-> Next corre em Node e o `@nala/db` usa `drizzle-orm/bun-sql`, que precisa do
-> módulo nativo `bun:sql`. Importar tipos com `import type` é seguro.
+> **`web` never imports `@nala/auth` (root) or `@nala/db` at runtime.** Next
+> runs on Node and `@nala/db` uses `drizzle-orm/bun-sql`, which needs the native
+> `bun:sql` module. Importing types with `import type` is safe.
 
-## Alterar a config
+## Changing the config
 
-O `@better-auth/cli generate` não corre aqui (carrega a config com jiti/Node e
-rebenta ao importar `drizzle-orm/bun-sql`). Em vez disso:
+`@better-auth/cli generate` does not run here (it loads the config with
+jiti/Node and blows up when importing `drizzle-orm/bun-sql`). Instead:
 
 ```sh
-bun run auth:verify   # compara a config do Better Auth com o schema Drizzle
+bun run auth:verify   # compares the Better Auth config against the Drizzle schema
 ```
 
-Depois de alinhar `packages/db/src/schema/auth.ts`, gera e aplica migrações em
-`packages/db` (`bun run db:generate` → `bun run db:migrate`).
+Once `packages/db/src/schema/auth.ts` is aligned, generate and apply the
+migrations in `packages/db` (`bun run db:generate` → `bun run db:migrate`).

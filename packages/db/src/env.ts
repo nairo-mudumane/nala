@@ -1,22 +1,22 @@
 /**
- * Carregamento e validação das variáveis de ambiente da base de dados.
+ * Loading and validation of the database environment variables.
  *
- * O Bun carrega automaticamente o `.env` a partir do cwd, pelo que basta
- * garantir que `DATABASE_URL` está definida (ver `.env.example`).
+ * Bun loads the `.env` automatically from the cwd, so it is enough to make sure
+ * `DATABASE_URL` is set (see `.env.example`).
  */
 
 function required(name: string): string {
   const value = process.env[name];
   if (!value) {
     throw new Error(
-      `[@nala/db] Variável de ambiente em falta: ${name}. ` +
-        "Copia packages/db/.env.example para .env e preenche o valor.",
+      `[@nala/db] Missing environment variable: ${name}. ` +
+        "Copy .env.example to .env at the monorepo root and fill in the value.",
     );
   }
   return value;
 }
 
 export const env = {
-  /** String de conexão ao PostgreSQL (18). */
+  /** PostgreSQL (18) connection string. */
   DATABASE_URL: required("DATABASE_URL"),
 } as const;

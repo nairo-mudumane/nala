@@ -19,7 +19,7 @@ export const sessionMiddleware = createMiddleware<{
 
 export const requireAuth = createMiddleware<{ Variables: AuthVariables }>(
   async (ctx, next) => {
-    if (!ctx.var.user) return ctx.json({ error: "Não autenticado" }, 401);
+    if (!ctx.var.user) return ctx.json({ error: "Not authenticated" }, 401);
 
     await next();
   },

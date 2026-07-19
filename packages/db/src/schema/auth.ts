@@ -1,13 +1,13 @@
 /**
- * Schema do Better Auth (tabelas core: user, session, account, verification).
+ * Better Auth schema (core tables: user, session, account, verification).
  *
- * As tabelas vivem aqui — e não em `@nala/auth` — para que exista **um único**
- * `drizzle.config.ts` e **uma única** pasta de migrações em todo o monorepo.
- * O pacote `@nala/auth` consome estas tabelas via `drizzleAdapter`.
+ * The tables live here — and not in `@nala/auth` — so that there is **a single**
+ * `drizzle.config.ts` and **a single** migrations folder across the monorepo.
+ * The `@nala/auth` package consumes these tables via `drizzleAdapter`.
  *
- * Ao alterar a config do Better Auth (plugins, campos extra), corre
- * `bun run auth:verify` (em `packages/auth`) e reflete as diferenças aqui
- * antes de correr `bun run db:generate`.
+ * When changing the Better Auth config (plugins, extra fields), run
+ * `bun run auth:verify` (in `packages/auth`) and reflect the differences here
+ * before running `bun run db:generate`.
  */
 import { boolean, index, pgTable, text, timestamp } from "drizzle-orm/pg-core";
 import { TABLE_DEFAULTS } from "../utils";
@@ -39,9 +39,9 @@ export const account = pgTable(
   "account",
   {
     ...TABLE_DEFAULTS,
-    /** ID da conta no provedor (ou o `user.id` para contas `credential`). */
+    /** Account ID at the provider (or `user.id` for `credential` accounts). */
     accountId: text().notNull(),
-    /** `credential` para email/password, ou o slug do OAuth (`github`, ...). */
+    /** `credential` for email/password, or the OAuth slug (`github`, ...). */
     providerId: text().notNull(),
     userId: text()
       .notNull()
@@ -52,7 +52,7 @@ export const account = pgTable(
     accessTokenExpiresAt: timestamp({ withTimezone: true }),
     refreshTokenExpiresAt: timestamp({ withTimezone: true }),
     scope: text(),
-    /** Hash da password (apenas para `providerId = "credential"`). */
+    /** Password hash (only for `providerId = "credential"`). */
     password: text(),
   },
   (table) => [index("account_user_id_idx").on(table.userId)],

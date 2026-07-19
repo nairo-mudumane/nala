@@ -18,21 +18,21 @@ export const UserSchema = z
 
 export const MeSchema = z.object({ user: UserSchema }).meta({ id: "Me" });
 
-/** Rota protegida — devolve o utilizador da sessão atual. */
+/** Protected route — returns the current session's user. */
 export const meRoutes = new Hono<{ Variables: AuthVariables }>().get(
   "/me",
   describeRoute({
-    tags: ["Sistema"],
-    summary: "Utilizador da sessão atual",
+    tags: ["System"],
+    summary: "Current session user",
     description:
-      "Requer um cookie de sessão válido, obtido via `/api/auth/sign-in/email`.",
+      "Requires a valid session cookie, obtained via `/api/auth/sign-in/email`.",
     responses: {
       200: {
-        description: "Utilizador autenticado.",
+        description: "Authenticated user.",
         content: { "application/json": { schema: resolver(MeSchema) } },
       },
       401: {
-        description: "Sem sessão válida.",
+        description: "No valid session.",
         content: { "application/json": { schema: resolver(ErrorSchema) } },
       },
     },

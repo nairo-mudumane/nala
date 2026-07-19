@@ -1,11 +1,11 @@
 /**
- * API pública do pacote `@nala/db`.
+ * Public API of the `@nala/db` package.
  *
- * - `db`      — cliente Drizzle já ligado ao PostgreSQL.
- * - schema    — tabelas, enums e tipos inferidos (`User`, `Session`, ...).
- * - operadores Drizzle (`eq`, `and`, `sql`, ...) reexportados por conveniência.
+ * - `db`     — Drizzle client already connected to PostgreSQL.
+ * - schema   — tables, enums, and inferred types (`User`, `Session`, ...).
+ * - Drizzle operators (`eq`, `and`, `sql`, ...) re-exported for convenience.
  *
- * Importar sempre pelo nome do pacote: `import { db, user, eq } from "@nala/db"`.
+ * Always import by package name: `import { db, user, eq } from "@nala/db"`.
  */
 export { db, type Database } from "./client";
 export * from "./schema/index";

@@ -7,7 +7,7 @@ import type { AuthVariables } from "../auth";
 export const OPENAPI_JSON_PATH = "/openapi.json";
 export const DOCS_PATH = "/docs";
 
-const AUTH_TAG = "Autenticação";
+const AUTH_TAG = "Authentication";
 const AUTH_SCHEMA_PREFIX = "Auth";
 
 const DOCUMENTATION: GenerateSpecOptions["documentation"] = {
@@ -16,14 +16,14 @@ const DOCUMENTATION: GenerateSpecOptions["documentation"] = {
     title: "Nala Core API",
     version: "0.0.1",
     description:
-      "API do Nala — gestão estratégica de candidaturas profissionais. " +
-      "A autenticação é feita por cookie de sessão (Better Auth); os " +
-      "endpoints protegidos devolvem 401 sem sessão válida.",
+      "Nala API — strategic job-application management. " +
+      "Authentication is done with a session cookie (Better Auth); " +
+      "protected endpoints return 401 without a valid session.",
   },
   servers: [{ url: "http://localhost:3001", description: "Local" }],
   tags: [
-    { name: "Sistema", description: "Estado e metadados do serviço." },
-    { name: AUTH_TAG, description: "Endpoints do Better Auth (/api/auth/*)." },
+    { name: "System", description: "Service status and metadata." },
+    { name: AUTH_TAG, description: "Better Auth endpoints (/api/auth/*)." },
   ],
 };
 
@@ -37,12 +37,13 @@ type AuthFragment = {
 };
 
 /**
- * Converte o schema do Better Auth (paths relativos a `/api/auth`, schemas em
- * nomes genéricos) para um fragmento fundível no spec global do `core`.
+ * Converts the Better Auth schema (paths relative to `/api/auth`, schemas under
+ * generic names) into a fragment that can be merged into `core`'s global spec.
  *
- * O Better Auth tipa este schema de forma mais frouxa do que o `openapi-types`
- * (ex.: `type: string` em vez do literal `"apiKey"`), daí o cast no retorno —
- * o conteúdo é JSON gerado em runtime, validado pelo próprio Scalar.
+ * Better Auth types this schema more loosely than `openapi-types` does
+ * (e.g. `type: string` instead of the `"apiKey"` literal), hence the cast on
+ * the return — the content is JSON generated at runtime, validated by Scalar
+ * itself.
  */
 async function buildAuthFragment(): Promise<AuthFragment> {
   const schema = await auth.api.generateOpenAPISchema();
@@ -81,8 +82,8 @@ async function buildAuthFragment(): Promise<AuthFragment> {
 }
 
 /**
- * Monta o `GET /openapi.json` (spec das rotas do `core` fundido com o do
- * Better Auth) e a UI do Scalar em `GET /docs`.
+ * Mounts `GET /openapi.json` (the spec of `core`'s routes merged with Better
+ * Auth's) and the Scalar UI at `GET /docs`.
  */
 export function mountDocs(app: Hono<{ Variables: AuthVariables }>) {
   app.get(OPENAPI_JSON_PATH, async (c) => {

@@ -1,178 +1,178 @@
-# Nala — Guia Técnico (AGENTS)
+# Nala — Technical Guide (AGENTS)
 
 > [!IMPORTANT]
-> **Pré-requisito de leitura — ler ANTES de qualquer trabalho técnico.**
-> Este ficheiro cobre apenas o **como** (arquitetura, convenções, comandos). O **o quê** e o **porquê** vivem em **[REQUIREMENTS.MD](REQUIREMENTS.MD)** (requisitos de negócio).
+> **Required reading — read BEFORE any technical work.**
+> This file covers only the **how** (architecture, conventions, commands). The **what** and the **why** live in **[REQUIREMENTS.MD](REQUIREMENTS.MD)** (business requirements).
 >
-> Fluxo obrigatório: **1)** lê [REQUIREMENTS.MD](REQUIREMENTS.MD) → **2)** lê este ficheiro → **3)** só depois escreves ou alteras código.
-> Nenhuma decisão técnica deve ser tomada sem o contexto de negócio. Se ainda não leste os requisitos, para e lê-os primeiro.
+> Mandatory flow: **1)** read [REQUIREMENTS.MD](REQUIREMENTS.MD) → **2)** read this file → **3)** only then write or change code.
+> No technical decision should be made without the business context. If you have not read the requirements yet, stop and read them first.
 
-## 1. Arquitetura do Repositório
+## 1. Repository Architecture
 
-O projeto é um **monorepo gerido com [Bun workspaces](https://bun.com/docs/install/workspaces) + [Turborepo](https://turborepo.dev)**.
+The project is a **monorepo managed with [Bun workspaces](https://bun.com/docs/install/workspaces) + [Turborepo](https://turborepo.dev)**.
 
-### 1.1 Estrutura
+### 1.1 Structure
 
 ```
 nala/
-├── package.json          # raiz do workspace (bun@1.3.3), scripts turbo
-├── turbo.json            # pipeline de tasks (build, dev, typecheck)
-├── biome.json            # lint + format (Biome) — config única para todo o monorepo
-├── tsconfig.json         # estende @nala/typescript-config
-├── web/                  # aplicação frontend Next.js (package: "web")
-├── core/                 # backend Hono sobre Bun (package: "core", porta 3001)
+├── package.json          # workspace root (bun@1.3.3), turbo scripts
+├── turbo.json            # task pipeline (build, dev, typecheck)
+├── biome.json            # lint + format (Biome) — single config for the whole monorepo
+├── tsconfig.json         # extends @nala/typescript-config
+├── web/                  # Next.js frontend app (package: "web")
+├── core/                 # Hono backend on Bun (package: "core", port 3001)
 └── packages/
-    ├── db/               # @nala/db — Drizzle + conexão PostgreSQL (v18) + schemas
-    ├── auth/             # @nala/auth — Better Auth (servidor + cliente React)
-    ├── ui/               # @nala/ui — componentes shadcn/ui partilhados
+    ├── db/               # @nala/db — Drizzle + PostgreSQL (v18) connection + schemas
+    ├── auth/             # @nala/auth — Better Auth (server + React client)
+    ├── ui/               # @nala/ui — shared shadcn/ui components
     └── typescript-config/# @nala/typescript-config
 ```
 
-Há **um único `.env` na raiz** para todo o monorepo (`cp .env.example .env`).
-O `core` e os scripts de `packages/*` consomem-no via `bun --env-file=...`; o
-`web` lê-o pelo carregamento nativo do Next através de um symlink
-`web/.env → ../.env`, criado automaticamente pelo `postinstall`. Não criar
-`.env` com conteúdo próprio por pacote.
+There is **a single `.env` at the root** for the whole monorepo (`cp .env.example .env`).
+`core` and the `packages/*` scripts consume it via `bun --env-file=...`; `web`
+reads it through Next's native loading via a symlink
+`web/.env → ../.env`, created automatically by `postinstall`. Do not create a
+per-package `.env` with its own contents.
 
-> O `bun --env-file` **não** funciona para o `web`: o `next dev` arranca um
-> servidor Node que não herda essas variáveis (verificado empiricamente). O
-> symlink é o que faz o Next carregá-las nativamente.
+> `bun --env-file` does **not** work for `web`: `next dev` starts a Node server
+> that does not inherit those variables (verified empirically). The symlink is
+> what makes Next load them natively.
 
-### 1.2 Convenções de workspaces
+### 1.2 Workspace conventions
 
-- Pacotes internos são referenciados pelo nome com o protocolo `workspace:*` (ex.: `"@nala/ui": "workspace:*"`). **Nunca** usar caminhos relativos entre pacotes.
-- A aplicação vive em `web/` (na raiz); todo o código partilhado vive em `packages/*`.
-- Ao criar um novo pacote partilhado, coloca-o em `packages/<nome>` com `name` no formato `@nala/<nome>` — o workspace deteta-o automaticamente (glob `packages/*`).
-- Importar código partilhado sempre pelo nome do pacote (ex.: `import { Button } from "@nala/ui/components/button"`), nunca por caminho relativo.
+- Internal packages are referenced by name with the `workspace:*` protocol (e.g. `"@nala/ui": "workspace:*"`). **Never** use relative paths between packages.
+- The application lives in `web/` (at the root); all shared code lives in `packages/*`.
+- When creating a new shared package, place it in `packages/<name>` with `name` in the format `@nala/<name>` — the workspace detects it automatically (glob `packages/*`).
+- Always import shared code by the package name (e.g. `import { Button } from "@nala/ui/components/button"`), never by relative path.
 
-### 1.3 Comandos (correr sempre a partir da raiz)
+### 1.3 Commands (always run from the root)
 
-- `bun install` — instala/religa todo o workspace.
-- `bun run dev` — arranca a app em modo dev (turbo).
-- `bun run build` — build de produção de todos os pacotes.
-- `bun run typecheck` — via turbo, em todos os pacotes.
-- `bun run lint` — Biome analisa todo o monorepo (uma passagem única a partir da raiz, sem turbo).
-- `bun run format` — Biome formata e escreve (`biome format --write .`).
-- `bun run check` — Biome corre lint + format + fixes seguros num só comando (`biome check --write .`).
+- `bun install` — installs/relinks the whole workspace.
+- `bun run dev` — starts the app in dev mode (turbo).
+- `bun run build` — production build of all packages.
+- `bun run typecheck` — via turbo, across all packages.
+- `bun run lint` — Biome analyzes the whole monorepo (a single pass from the root, without turbo).
+- `bun run format` — Biome formats and writes (`biome format --write .`).
+- `bun run check` — Biome runs lint + format + safe fixes in one command (`biome check --write .`).
 
 ### 1.3.1 Lint & Format (Biome)
 
-O lint e a formatação são geridos por **[Biome](https://biomejs.dev)** (`@biomejs/biome`, fixado em `2.5.4`), com **uma config única na raiz** (`biome.json`) para todo o monorepo — substitui ESLint + Prettier. Convenções impostas:
+Linting and formatting are managed by **[Biome](https://biomejs.dev)** (`@biomejs/biome`, pinned at `2.5.4`), with **a single config at the root** (`biome.json`) for the whole monorepo — it replaces ESLint + Prettier. Enforced conventions:
 
-- Ponto e vírgula (`;`) no fim de cada linha (`semicolons: "always"`).
-- Aspas duplas, incluindo em importações (`quoteStyle: "double"`).
-- Proíbe variáveis e importações não utilizadas (`noUnusedVariables`/`noUnusedImports` como `error`).
-- **Não** reordena importações (`assist.actions.source.organizeImports: "off"`).
-- Indentação de 2 espaços, largura de linha 80, fim de linha `lf`.
+- Semicolon (`;`) at the end of every line (`semicolons: "always"`).
+- Double quotes, including in imports (`quoteStyle: "double"`).
+- Forbids unused variables and imports (`noUnusedVariables`/`noUnusedImports` as `error`).
+- Does **not** reorder imports (`assist.actions.source.organizeImports: "off"`).
+- 2-space indentation, line width 80, line ending `lf`.
 
-Biome respeita o `.gitignore` (`vcs.useIgnoreFile`), pelo que `node_modules`, `.next`, `dist` e `.turbo` são ignorados automaticamente. Não há configs por pacote — corre sempre a partir da raiz.
+Biome respects `.gitignore` (`vcs.useIgnoreFile`), so `node_modules`, `.next`, `dist`, and `.turbo` are ignored automatically. There are no per-package configs — always run from the root.
 
 Apps:
 
-- **`web`** — frontend Next.js (porta 3000).
-- **`core`** — backend Hono a correr sobre o runtime Bun (porta 3001). Ponto de entrada `core/src/index.ts` exporta `{ port, fetch }` (servido diretamente pelo Bun, sem adaptador). Corre isolado com `bun run --hot core/src/index.ts` ou via `bun run dev` (turbo arranca ambas as apps).
+- **`web`** — Next.js frontend (port 3000).
+- **`core`** — Hono backend running on the Bun runtime (port 3001). The entry point `core/src/index.ts` exports `{ port, fetch }` (served directly by Bun, without an adapter). Run it standalone with `bun run --hot core/src/index.ts` or via `bun run dev` (turbo starts both apps).
 
-### 1.3.2 Documentação da API (OpenAPI + Scalar)
+### 1.3.2 API Documentation (OpenAPI + Scalar)
 
-O `core` publica um spec **OpenAPI 3.1** e serve a UI do **[Scalar](https://scalar.com)**:
+`core` publishes an **OpenAPI 3.1** spec and serves the **[Scalar](https://scalar.com)** UI:
 
-- `GET /docs` — UI do Scalar (`@scalar/hono-api-reference`).
-- `GET /openapi.json` — spec gerado em runtime.
+- `GET /docs` — Scalar UI (`@scalar/hono-api-reference`).
+- `GET /openapi.json` — spec generated at runtime.
 
-O spec resulta da **fusão de duas fontes** (`core/src/openapi.ts`):
+The spec is the **merge of two sources** (`core/src/openapi.ts`):
 
-1. As rotas próprias do `core`, anotadas com `describeRoute()` do **`hono-openapi`** (v1) e schemas **Zod v4** de `core/src/schemas.ts` (via `resolver()`).
-2. Os endpoints do Better Auth, obtidos de `auth.api.generateOpenAPISchema()` (plugin `openAPI()` em `packages/auth/src/server.ts`). Os paths vêm relativos à base de auth, por isso são prefixados com `/api/auth`, re-tagueados como `Autenticação`, e os schemas são renomeados com o prefixo `Auth` (`User` → `AuthUser`) para não colidirem com os das rotas próprias — os `$ref` são reescritos em conjunto.
+1. `core`'s own routes, annotated with `describeRoute()` from **`hono-openapi`** (v1) and **Zod v4** schemas from `core/src/schemas.ts` (via `resolver()`).
+2. The Better Auth endpoints, obtained from `auth.api.generateOpenAPISchema()` (the `openAPI()` plugin in `packages/auth/src/server.ts`). Their paths come relative to the auth base, so they are prefixed with `/api/auth`, re-tagged as `Authentication`, and the schemas are renamed with the `Auth` prefix (`User` → `AuthUser`) so they do not collide with those of the own routes — the `$ref`s are rewritten along with them.
 
-> O plugin do Better Auth corre com `disableDefaultReference: true`: a referência dele em `/api/auth/reference` fica desligada para haver **uma única UI** (`/docs`) com toda a API. O catch-all `/api/auth/*` é excluído do `generateSpecs` porque os paths reais entram pelo fragmento de auth.
+> The Better Auth plugin runs with `disableDefaultReference: true`: its own reference at `/api/auth/reference` is switched off so there is **a single UI** (`/docs`) covering the whole API. The catch-all `/api/auth/*` is excluded from `generateSpecs` because the real paths come in through the auth fragment.
 
-**Ao adicionar uma rota nova ao `core`:** cria `core/src/routes/<rota>.ts` (ver §1.3.3), envolve o handler com `describeRoute({ tags, summary, responses })` e usa uma `tag` **já declarada** em `DOCUMENTATION.tags` (`routes/docs.ts`) — uma tag não declarada aparece como grupo solto no Scalar. Sem `describeRoute` a rota aparece no spec sem documentação.
+**When adding a new route to `core`:** create `core/src/routes/<route>.ts` (see §1.3.3), wrap the handler with `describeRoute({ tags, summary, responses })`, and use a `tag` **already declared** in `DOCUMENTATION.tags` (`routes/docs.ts`) — an undeclared tag shows up as a stray group in Scalar. Without `describeRoute` the route appears in the spec undocumented.
 
-`hono-openapi` declara as suas dependências como **peer deps** — `@hono/standard-validator`, `@standard-community/standard-json`, `@standard-community/standard-openapi`, `openapi-types`, `@types/json-schema` estão explícitas no `core/package.json`. Sem elas o arranque rebenta com `Cannot find module '@hono/standard-validator'`.
+`hono-openapi` declares its dependencies as **peer deps** — `@hono/standard-validator`, `@standard-community/standard-json`, `@standard-community/standard-openapi`, `openapi-types`, `@types/json-schema` are explicit in `core/package.json`. Without them startup blows up with `Cannot find module '@hono/standard-validator'`.
 
-### 1.3.3 Organização das rotas do `core`
+### 1.3.3 Organization of `core`'s routes
 
-**Todas as rotas vivem em `core/src/routes/*`, uma por ficheiro.** O `core/src/index.ts` limita-se a criar a app, aplicar middleware global (CORS, sessão) e montar os routers — nunca define handlers.
+**All routes live in `core/src/routes/*`, one per file.** `core/src/index.ts` only creates the app, applies global middleware (CORS, session), and mounts the routers — it never defines handlers.
 
 ```
 core/src/
-├── index.ts          # app + middleware global + montagem dos routers
-├── auth.ts           # middleware de auth (sessionMiddleware, requireAuth) — não são rotas
-├── schemas.ts        # schemas Zod partilhados por várias rotas (ex.: ErrorSchema)
+├── index.ts          # app + global middleware + router mounting
+├── auth.ts           # auth middleware (sessionMiddleware, requireAuth) — not routes
+├── schemas.ts        # Zod schemas shared by several routes (e.g. ErrorSchema)
 └── routes/
-    ├── index.ts      # barril — reexporta todos os routers
+    ├── index.ts      # barrel — re-exports every router
     ├── root.ts       # GET /
     ├── health.ts     # GET /health
-    ├── me.ts         # GET /me (protegida)
-    ├── auth.ts       # catch-all /api/auth/* (handler do Better Auth)
+    ├── me.ts         # GET /me (protected)
+    ├── auth.ts       # catch-all /api/auth/* (Better Auth handler)
     └── docs.ts       # GET /docs (Scalar) + GET /openapi.json
 ```
 
-- Cada ficheiro exporta um `new Hono()` com o nome `<rota>Routes`, montado em `index.ts` com `app.route("/", <rota>Routes)` — o path completo é declarado dentro do próprio router.
-- Rotas protegidas tipam o router como `new Hono<{ Variables: AuthVariables }>()` e aplicam `requireAuth` no handler.
-- **Schemas Zod específicos de uma rota vivem no ficheiro dessa rota**; só o que é partilhado vai para `core/src/schemas.ts`.
-- Depois de adicionar um router, reexporta-o em `routes/index.ts`.
+- Each file exports a `new Hono()` named `<route>Routes`, mounted in `index.ts` with `app.route("/", <route>Routes)` — the full path is declared inside the router itself.
+- Protected routes type the router as `new Hono<{ Variables: AuthVariables }>()` and apply `requireAuth` on the handler.
+- **Zod schemas specific to one route live in that route's file**; only what is shared goes to `core/src/schemas.ts`.
+- After adding a router, re-export it in `routes/index.ts`.
 
-> **Ordem de montagem em `index.ts` (importa):** `authRoutes` **antes** do `sessionMiddleware` (senão o handler do Better Auth corre com a sessão já resolvida), e `mountDocs(app)` **por último** — o `generateSpecs` percorre as rotas já registadas na app.
+> **Mounting order in `index.ts` (it matters):** `authRoutes` **before** `sessionMiddleware` (otherwise the Better Auth handler runs with the session already resolved), and `mountDocs(app)` **last** — `generateSpecs` walks the routes already registered on the app.
 
-### 1.4 Componentes shadcn/ui
+### 1.4 shadcn/ui components
 
-Os componentes shadcn são **código-fonte** que vive no pacote `@nala/ui` (`packages/ui/src/components`), não uma dependência externa. A versão do CLI está fixada em `shadcn@4.13.1` (ver `packages/ui/package.json`) — usa-a explicitamente para manter consistência.
+The shadcn components are **source code** living in the `@nala/ui` package (`packages/ui/src/components`), not an external dependency. The CLI version is pinned at `shadcn@4.13.1` (see `packages/ui/package.json`) — use it explicitly to stay consistent.
 
-- **Adicionar um componente:** `bun x shadcn@4.13.1 add <componente> -c packages/ui`
-- **Adicionar todos:** `bun x shadcn@4.13.1 add --all --yes -c packages/ui`
-- **Sobrescrever existentes:** juntar a flag `--overwrite` (`-o`).
-- O alvo é **sempre** `packages/ui` (via `-c packages/ui` ou correndo dentro dessa pasta) — nunca a app `web`.
-- Após adicionar, corre `bun install` (deps novas) e `bun run typecheck`.
-- Depois de instalar, importa na app por `@nala/ui/components/<componente>`.
-- **Tooltip:** requer envolver a app com `<TooltipProvider>` em `web/app/layout.tsx`.
+- **Add a component:** `bun x shadcn@4.13.1 add <component> -c packages/ui`
+- **Add all of them:** `bun x shadcn@4.13.1 add --all --yes -c packages/ui`
+- **Overwrite existing ones:** add the `--overwrite` flag (`-o`).
+- The target is **always** `packages/ui` (via `-c packages/ui` or by running inside that folder) — never the `web` app.
+- After adding, run `bun install` (new deps) and `bun run typecheck`.
+- Once installed, import it in the app via `@nala/ui/components/<component>`.
+- **Tooltip:** requires wrapping the app with `<TooltipProvider>` in `web/app/layout.tsx`.
 
-### 1.5 Base de dados (`@nala/db`)
+### 1.5 Database (`@nala/db`)
 
-Toda a camada de dados vive no pacote **`@nala/db`** (`packages/db`): configuração do **[Drizzle ORM](https://orm.drizzle.team)** (`drizzle-orm` fixado em `0.45.2`, `drizzle-kit` em `0.31.10`), a **conexão ao PostgreSQL (18)** e **todos os schemas**. Nenhum outro pacote define schemas ou abre conexões à BD — importam sempre de `@nala/db`.
+The whole data layer lives in the **`@nala/db`** package (`packages/db`): the **[Drizzle ORM](https://orm.drizzle.team)** configuration (`drizzle-orm` pinned at `0.45.2`, `drizzle-kit` at `0.31.10`), the **PostgreSQL (18) connection**, and **all schemas**. No other package defines schemas or opens DB connections — they always import from `@nala/db`.
 
-- **Driver:** usa o PostgreSQL nativo do Bun via `drizzle-orm/bun-sql` (`Bun.SQL`) — **sem** `pg`/`postgres` em runtime. O `pg` existe apenas como `devDependency` para as ferramentas do `drizzle-kit` (`db:push`/`db:studio`); migrações em produção correm com o migrator nativo de Bun.
-- **Conexão:** `DATABASE_URL` é validada em `src/env.ts`. Vive no **`.env` único da raiz** do monorepo (`cp .env.example .env`) — os scripts de BD/`core` passam-no com `--env-file`, e o `web` lê-o via symlink `web/.env` (ver §1.1).
-- **Importar:** `import { db, user, eq } from "@nala/db"` — o pacote reexporta o cliente `db`, os schemas/tipos e os operadores do `drizzle-orm`. Nunca por caminho relativo.
-- **Adicionar uma tabela:** cria `src/schema/<tabela>.ts` e reexporta-a em `src/schema/index.ts` (barril único apontado pelo `drizzle.config.ts` e pelo cliente).
-- **Convenção de nomes:** chaves em `camelCase` no TS → colunas em `snake_case` na BD (`casing: "snake_case"`, definido no cliente e no `drizzle.config.ts`).
-- **Comandos (correr a partir de `packages/db`):**
-  - `bun run db:generate` — gera migrações SQL a partir dos schemas → `packages/db/drizzle` (commitar).
-  - `bun run db:migrate` — aplica migrações pendentes (migrator nativo de Bun, sem `pg`).
-  - `bun run db:push` — sincroniza o schema direto na BD (dev/prototipagem).
-  - `bun run db:studio` — abre o Drizzle Studio.
+- **Driver:** uses Bun's native PostgreSQL support via `drizzle-orm/bun-sql` (`Bun.SQL`) — **no** `pg`/`postgres` at runtime. `pg` exists only as a `devDependency` for the `drizzle-kit` tooling (`db:push`/`db:studio`); production migrations run with Bun's native migrator.
+- **Connection:** `DATABASE_URL` is validated in `src/env.ts`. It lives in the monorepo's **single root `.env`** (`cp .env.example .env`) — the DB/`core` scripts pass it with `--env-file`, and `web` reads it via the `web/.env` symlink (see §1.1).
+- **Importing:** `import { db, user, eq } from "@nala/db"` — the package re-exports the `db` client, the schemas/types, and the `drizzle-orm` operators. Never by relative path.
+- **Adding a table:** create `src/schema/<table>.ts` and re-export it in `src/schema/index.ts` (the single barrel pointed at by `drizzle.config.ts` and the client).
+- **Naming convention:** `camelCase` keys in TS → `snake_case` columns in the DB (`casing: "snake_case"`, set on the client and in `drizzle.config.ts`).
+- **Commands (run from `packages/db`):**
+  - `bun run db:generate` — generates SQL migrations from the schemas → `packages/db/drizzle` (commit them).
+  - `bun run db:migrate` — applies pending migrations (Bun's native migrator, without `pg`).
+  - `bun run db:push` — syncs the schema straight to the DB (dev/prototyping).
+  - `bun run db:studio` — opens Drizzle Studio.
 
 <!-- BEGIN:nextjs-agent-rules -->
 
-### 1.6 Autenticação (`@nala/auth`)
+### 1.6 Authentication (`@nala/auth`)
 
-Toda a autenticação vive no pacote **`@nala/auth`** (`packages/auth`), assente no **[Better Auth](https://better-auth.com)** (`better-auth` fixado em `1.6.23`) com o `drizzleAdapter` sobre o `@nala/db`.
+All authentication lives in the **`@nala/auth`** package (`packages/auth`), built on **[Better Auth](https://better-auth.com)** (`better-auth` pinned at `1.6.23`) with the `drizzleAdapter` over `@nala/db`.
 
-**Separação de responsabilidades:** as **tabelas** (`user`, `session`, `account`, `verification`) vivem em `@nala/db` (`src/schema/auth.ts`), a **lógica** vive em `@nala/auth`. Assim há um único `drizzle.config.ts` e uma única pasta de migrações em todo o monorepo — nunca criar um segundo setup de Drizzle dentro de `packages/auth`.
+**Separation of responsibilities:** the **tables** (`user`, `session`, `account`, `verification`) live in `@nala/db` (`src/schema/auth.ts`), the **logic** lives in `@nala/auth`. That keeps a single `drizzle.config.ts` and a single migrations folder across the whole monorepo — never create a second Drizzle setup inside `packages/auth`.
 
-- **Servidor de auth:** é a app `core` (Hono, porta 3001). Monta o handler em `/api/auth/*` (`core/src/auth.ts`) e é o único endpoint HTTP de autenticação. O `web` **não** tem `app/api/auth/[...all]/route.ts`.
-- **Entradas do pacote:**
-  - `@nala/auth` — instância `auth` + tipos (`Auth`, `AuthSession`, `AuthUser`). **Só servidor.**
-  - `@nala/auth/client` — `authClient` (`better-auth/react`) para Client Components.
-- **No Hono (`core`):** `sessionMiddleware` popula `c.var.user`/`c.var.session`; `requireAuth` protege rotas (401). Ver `/me` em `core/src/index.ts` como exemplo.
-- **No Next.js (`web`):**
-  - Servidor (Server Components / Actions): `getSession()` / `requireSession()` de `web/lib/auth.ts`. Fazem `fetch` a `core` (`/api/auth/get-session`) reencaminhando os cookies, memoizado por pedido com `cache()` do React.
-  - Browser: `authClient.useSession()`, `authClient.signIn.email(...)`, etc., a partir de `@nala/auth/client` (aponta para `NEXT_PUBLIC_AUTH_URL`).
+- **Auth server:** it is the `core` app (Hono, port 3001). It mounts the handler at `/api/auth/*` (`core/src/auth.ts`) and is the only HTTP authentication endpoint. `web` does **not** have `app/api/auth/[...all]/route.ts`.
+- **Package entry points:**
+  - `@nala/auth` — the `auth` instance + types (`Auth`, `AuthSession`, `AuthUser`). **Server only.**
+  - `@nala/auth/client` — `authClient` (`better-auth/react`) for Client Components.
+- **In Hono (`core`):** `sessionMiddleware` populates `c.var.user`/`c.var.session`; `requireAuth` protects routes (401). See `/me` in `core/src/index.ts` as an example.
+- **In Next.js (`web`):**
+  - Server (Server Components / Actions): `getSession()` / `requireSession()` from `web/lib/auth.ts`. They `fetch` `core` (`/api/auth/get-session`) forwarding the cookies, memoized per request with React's `cache()`.
+  - Browser: `authClient.useSession()`, `authClient.signIn.email(...)`, etc., from `@nala/auth/client` (which points at `NEXT_PUBLIC_AUTH_URL`).
 
-  > **Nunca importar `@nala/auth` (raiz) nem `@nala/db` dentro do `web`.** O Next corre em **Node** e o `@nala/db` usa `drizzle-orm/bun-sql`, que precisa do módulo nativo `bun:sql` — o import rebenta em runtime com `Cannot find module 'bun:sql'`. Só o `core` (Bun) fala com a BD. Importar **tipos** com `import type` é seguro (é apagado na compilação).
+  > **Never import `@nala/auth` (root) or `@nala/db` inside `web`.** Next runs on **Node** and `@nala/db` uses `drizzle-orm/bun-sql`, which needs the native `bun:sql` module — the import blows up at runtime with `Cannot find module 'bun:sql'`. Only `core` (Bun) talks to the DB. Importing **types** with `import type` is safe (it is erased at compile time).
 
-- **IDs:** `advanced.database.generateId` usa `nanoid(21)`, alinhado com `TABLE_DEFAULTS` de `packages/db/src/utils.ts`. Qualquer tabela nova deve espalhar `...TABLE_DEFAULTS` para herdar `id`/`createdAt`/`updatedAt`. Isto afeta **só os IDs das linhas** — o `token` de sessão continua a ser gerado pelo CSPRNG interno do Better Auth (`generateId(32)`).
-- **Hashing de passwords:** `Bun.password` com `argon2id` (ver `emailAndPassword.password` em `server.ts`), a substituir o `scrypt` por omissão do Better Auth. Depende do runtime Bun — outra razão para o hashing só acontecer no `core`.
-- **Resolução de módulos:** `@nala/auth` e `@nala/db` estendem `@nala/typescript-config/library.json` (`moduleResolution: "Bundler"`) e usam imports relativos **sem extensão**. Com o `.js` do NodeNext o Turbopack não resolve os ficheiros `.ts` e o build do `web` falha com `Module not found`.
-- **Alterar a config do Better Auth** (plugins, campos extra) exige refletir o schema:
-  1. edita `packages/auth/src/server.ts`;
-  2. corre `bun run auth:verify` (em `packages/auth`) — compara a config com o schema Drizzle e falha se houver tabelas/colunas em falta;
-  3. atualiza `packages/db/src/schema/auth.ts` até passar;
-  4. corre `bun run db:generate` e `bun run db:migrate` (em `packages/db`).
+- **IDs:** `advanced.database.generateId` uses `nanoid(21)`, aligned with `TABLE_DEFAULTS` from `packages/db/src/utils.ts`. Any new table should spread `...TABLE_DEFAULTS` to inherit `id`/`createdAt`/`updatedAt`. This affects **only row IDs** — the session `token` is still generated by Better Auth's internal CSPRNG (`generateId(32)`).
+- **Password hashing:** `Bun.password` with `argon2id` (see `emailAndPassword.password` in `server.ts`), replacing Better Auth's default `scrypt`. It depends on the Bun runtime — another reason hashing only happens in `core`.
+- **Module resolution:** `@nala/auth` and `@nala/db` extend `@nala/typescript-config/library.json` (`moduleResolution: "Bundler"`) and use relative imports **without an extension**. With NodeNext's `.js` extension Turbopack does not resolve the `.ts` files and the `web` build fails with `Module not found`.
+- **Changing the Better Auth config** (plugins, extra fields) requires reflecting the schema:
+  1. edit `packages/auth/src/server.ts`;
+  2. run `bun run auth:verify` (in `packages/auth`) — it compares the config against the Drizzle schema and fails if tables/columns are missing;
+  3. update `packages/db/src/schema/auth.ts` until it passes;
+  4. run `bun run db:generate` and `bun run db:migrate` (in `packages/db`).
 
-  > O `@better-auth/cli generate` **não** funciona neste projeto: carrega a config com jiti/Node e rebenta ao importar `drizzle-orm/bun-sql` (depende do módulo nativo `bun:sql`). Usar `auth:verify` no lugar dele.
+  > `@better-auth/cli generate` does **not** work in this project: it loads the config with jiti/Node and blows up when importing `drizzle-orm/bun-sql` (which depends on the native `bun:sql` module). Use `auth:verify` in its place.
 
-### 1.7 Esta NÃO é a Next.js que conheces
+### 1.7 This is NOT the Next.js you know
 
-Esta versão tem breaking changes — APIs, convenções e estrutura de ficheiros podem diferir do teu conhecimento de treino. Lê o guia relevante em `web/node_modules/next/dist/docs/` antes de escrever código. Presta atenção a avisos de deprecação.
+This version has breaking changes — APIs, conventions, and file structure may differ from your training knowledge. Read the relevant guide in `web/node_modules/next/dist/docs/` before writing code. Pay attention to deprecation warnings.
 <!-- END:nextjs-agent-rules -->

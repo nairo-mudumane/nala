@@ -1,37 +1,37 @@
-# Nala — Requisitos de Negócio
+# Nala — Business Requirements
 
-O **Nala** é uma plataforma de gestão estratégica de candidaturas profissionais, desenhada para centralizar, organizar e otimizar o processo de procura de emprego, eliminando o esforço manual e garantindo controle total sobre cada interação profissional.
+**Nala** is a strategic job-application management platform, designed to centralize, organize, and optimize the job-hunting process, eliminating manual effort and guaranteeing full control over every professional interaction.
 
-> Este documento define **o quê** e **porquê** (contexto de produto). As decisões técnicas de **como** vivem em [AGENTS.MD](AGENTS.MD).
+> This document defines the **what** and the **why** (product context). The technical **how** lives in [AGENTS.MD](AGENTS.MD).
 
-## 1. Proposta de Valor
+## 1. Value Proposition
 
-- **Gestão de Contexto:** Acesso imediato a todos os detalhes de cada candidatura (Job Description e versão do CV enviado), facilitando a preparação para entrevistas.
-- **Alinhamento Estratégico:** Aumento das taxas de sucesso através da adaptação inteligente do currículo para cada vaga específica.
-- **Interoperabilidade:** Geração de documentos estruturados semanticamente, garantindo máxima legibilidade por sistemas automáticos de triagem (ATS) e facilidade de edição posterior em editores de texto.
+- **Context Management:** Immediate access to every detail of each application (job description and the CV version that was sent), making interview preparation easier.
+- **Strategic Alignment:** Higher success rates through intelligent adaptation of the résumé to each specific role.
+- **Interoperability:** Generation of semantically structured documents, guaranteeing maximum readability by automated screening systems (ATS) and easy downstream editing in word processors.
 
-## 2. Funcionalidades Principais (MVP 1)
+## 2. Core Features (MVP 1)
 
-### 2.1 Gestão de Candidaturas
+### 2.1 Application Management
 
-- Criação de registro dedicado para cada vaga de interesse.
-- Armazenamento centralizado da descrição da vaga (Job Description).
-- Histórico consolidado de comunicações e notas sobre cada processo seletivo.
+- Creation of a dedicated record for each role of interest.
+- Centralized storage of the job description.
+- Consolidated history of communications and notes for each hiring process.
 
-### 2.2 Otimização e Geração de Documentos
+### 2.2 Document Optimization and Generation
 
-- Análise crítica da vaga para extração de requisitos e palavras-chave.
-- Geração de currículos otimizados, priorizando a relevância para a vaga mantendo a integridade profissional.
-- Criação automática de cartas de apresentação personalizadas.
-- Exportação de documentos em formatos que preservam a hierarquia lógica, garantindo compatibilidade universal.
+- Critical analysis of the role to extract requirements and keywords.
+- Generation of optimized résumés, prioritizing relevance to the role while preserving professional integrity.
+- Automatic creation of tailored cover letters.
+- Document export in formats that preserve the logical hierarchy, guaranteeing universal compatibility.
 
-### 2.3 Central de Preparação
+### 2.3 Preparation Hub
 
-- Interface de consulta rápida ("Chat") vinculada a cada candidatura.
-- Recuperação instantânea do histórico do processo para suporte pré-entrevista.
-- Comparação direta entre o perfil enviado e os requisitos da vaga.
+- Quick-reference interface ("Chat") bound to each application.
+- Instant retrieval of the process history for pre-interview support.
+- Direct comparison between the submitted profile and the role's requirements.
 
-## 3. Padrões de Qualidade e Saída
+## 3. Quality and Output Standards
 
-- **Compatibilidade ATS:** Documentos otimizados para leitura por qualquer IA de triagem, sem erros de estrutura.
-- **Editabilidade:** Layout limpo e hierárquico, permitindo conversão direta para formatos de edição (.docx) sem perda de formatação ou uso de elementos complexos (caixas de texto/tabelas flutuantes).
+- **ATS Compatibility:** Documents optimized for reading by any screening AI, with no structural errors.
+- **Editability:** Clean, hierarchical layout, allowing direct conversion to editing formats (.docx) without loss of formatting or use of complex elements (text boxes / floating tables).

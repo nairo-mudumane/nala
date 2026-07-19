@@ -1,5 +1,5 @@
 /**
- * Barril de schemas. Cada tabela vive no seu próprio ficheiro e é reexportada
- * aqui — o `drizzle.config.ts` e o cliente apontam para este ponto único.
+ * Schema barrel. Each table lives in its own file and is re-exported here —
+ * `drizzle.config.ts` and the client both point at this single entry point.
  */
 export * from "./auth";

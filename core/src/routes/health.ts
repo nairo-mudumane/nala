@@ -9,7 +9,7 @@ export const HealthSchema = z
 export const healthRoutes = new Hono().get(
   "/health",
   describeRoute({
-    tags: ["Sistema"],
+    tags: ["System"],
     summary: "Health check",
     responses: {
       200: {

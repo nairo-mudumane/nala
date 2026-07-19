@@ -1,12 +1,12 @@
 # @nala/db
 
-Camada de acesso a dados do Nala. Aqui vivem **toda a configuração do Drizzle**,
-a **conexão ao PostgreSQL (18)** e **todos os schemas**.
+Nala's data access layer. This is where **all the Drizzle configuration**, the
+**PostgreSQL (18) connection**, and **all schemas** live.
 
-Usa o driver nativo de PostgreSQL do Bun (`drizzle-orm/bun-sql`) — não há
-dependência de `pg`/`postgres`.
+It uses Bun's native PostgreSQL driver (`drizzle-orm/bun-sql`) — there is no
+dependency on `pg`/`postgres`.
 
-## Uso
+## Usage
 
 ```ts
 import { db, user, eq } from "@nala/db";
@@ -18,48 +18,48 @@ const [row] = await db.select().from(user).where(eq(user.email, "a@b.com"));
 
 ## Setup
 
-1. Copia o exemplo de ambiente **na raiz do monorepo** e preenche a
-   `DATABASE_URL` (há um único `.env` para todo o workspace):
+1. Copy the environment example **at the monorepo root** and fill in
+   `DATABASE_URL` (there is a single `.env` for the whole workspace):
 
    ```sh
    cp .env.example .env
    ```
 
-2. Gera e aplica migrações (correr dentro de `packages/db`):
+2. Generate and apply the migrations (run inside `packages/db`):
 
    ```sh
    cd packages/db
-   bun run db:generate   # gera SQL a partir dos schemas → ./drizzle
-   bun run db:migrate    # aplica as migrações à base de dados
+   bun run db:generate   # generates SQL from the schemas → ./drizzle
+   bun run db:migrate    # applies the migrations to the database
    ```
 
-## Comandos (a partir de `packages/db`)
+## Commands (from `packages/db`)
 
-| Comando              | Descrição                                             |
-| -------------------- | ----------------------------------------------------- |
-| `bun run db:generate`| Gera migrações SQL a partir dos schemas.              |
-| `bun run db:migrate` | Aplica as migrações pendentes.                        |
-| `bun run db:push`    | Sincroniza o schema direto na BD (dev/prototipagem).  |
-| `bun run db:studio`  | Abre o Drizzle Studio.                                |
+| Command              | Description                                          |
+| -------------------- | ---------------------------------------------------- |
+| `bun run db:generate`| Generates SQL migrations from the schemas.           |
+| `bun run db:migrate` | Applies pending migrations.                          |
+| `bun run db:push`    | Syncs the schema straight to the DB (dev/prototyping).|
+| `bun run db:studio`  | Opens Drizzle Studio.                                |
 
-## Estrutura
+## Structure
 
 ```
 packages/db/
-├── drizzle.config.ts   # config do Drizzle Kit (dialeto, schema, migrações)
-├── drizzle/            # migrações SQL geradas (commitadas)
+├── drizzle.config.ts   # Drizzle Kit config (dialect, schema, migrations)
+├── drizzle/            # generated SQL migrations (committed)
 └── src/
-    ├── index.ts        # API pública (db + schema + operadores)
-    ├── client.ts       # cliente Drizzle sobre Bun.SQL
-    ├── env.ts          # validação de DATABASE_URL
-    └── schema/         # um ficheiro por tabela + barril (index.ts)
-        └── auth.ts     # tabelas do Better Auth (geridas por @nala/auth)
+    ├── index.ts        # public API (db + schema + operators)
+    ├── client.ts       # Drizzle client over Bun.SQL
+    ├── env.ts          # DATABASE_URL validation
+    └── schema/         # one file per table + barrel (index.ts)
+        └── auth.ts     # Better Auth tables (owned by @nala/auth)
 ```
 
-> As tabelas de autenticação (`user`, `session`, `account`, `verification`)
-> vivem aqui, mas o seu formato é ditado pelo `@nala/auth`. Depois de mexer na
-> config do Better Auth, corre `bun run auth:verify` em `packages/auth` antes
-> de gerar migrações.
+> The authentication tables (`user`, `session`, `account`, `verification`) live
+> here, but their shape is dictated by `@nala/auth`. After touching the Better
+> Auth config, run `bun run auth:verify` in `packages/auth` before generating
+> migrations.
 
-Para adicionar uma tabela: cria `src/schema/<tabela>.ts` e reexporta-a em
+To add a table: create `src/schema/<table>.ts` and re-export it in
 `src/schema/index.ts`.

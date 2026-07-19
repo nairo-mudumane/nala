@@ -2,8 +2,8 @@ function required(name: string): string {
   const value = process.env[name];
   if (!value) {
     throw new Error(
-      `[@nala/auth] Variável de ambiente em falta: ${name}. ` +
-        "Copia .env.example para .env e preenche o valor.",
+      `[@nala/auth] Missing environment variable: ${name}. ` +
+        "Copy .env.example to .env and fill in the value.",
     );
   }
   return value;
