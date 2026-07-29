@@ -22,11 +22,7 @@ export function JobsAside() {
   const isAsideOpen = useJobsAside((state) => state.isOpen);
   const setIsAsideOpen = useJobsAside((state) => state.setIsOpen);
 
-  const jobs: JobListItem[] = [
-    { id: "1", title: "Software Engineer", company: "Acme Corp" },
-    { id: "2", title: "Product Manager", company: "Beta Inc" },
-    { id: "3", title: "UX Designer", company: "Gamma LLC" },
-  ];
+  const jobs: JobListItem[] = [];
 
   if (jobs.length === 0) return null;
 
