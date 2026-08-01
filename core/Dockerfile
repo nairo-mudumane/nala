@@ -32,6 +32,13 @@ RUN bun install --frozen-lockfile --ignore-scripts --production \
 FROM base AS runtime
 WORKDIR /app
 
+# O healthcheck do Coolify corre `curl` (com fallback para `wget`) DENTRO do
+# container, e a imagem do Bun não traz nenhum dos dois de forma utilizável.
+# Sem isto o Coolify dá o container como saudável com um exit code 0 vindo de
+# "curl: not found" — pior do que não ter healthcheck, porque mente.
+# Antes dos COPY, para a camada não ser invalidada a cada mudança de código.
+RUN apk add --no-cache curl
+
 COPY --from=deps /app/node_modules                  ./node_modules
 COPY --from=deps /app/core/node_modules             ./core/node_modules
 COPY --from=deps /app/packages/auth/node_modules    ./packages/auth/node_modules
@@ -50,6 +57,14 @@ RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
 ENV PORT=3001
 EXPOSE 3001
+
+# 127.0.0.1 e não `localhost`: o `localhost` resolve também para ::1, e um
+# cliente que tente IPv6 primeiro leva "connection refused" de um servidor que
+# está perfeitamente vivo em IPv4.
+# Forma shell (sem JSON) para o ${PORT} ser expandido em runtime.
+# O start period cobre a aplicação das migrações feita pelo entrypoint.
+HEALTHCHECK --interval=10s --timeout=5s --start-period=40s --retries=5 \
+  CMD curl -fsS "http://127.0.0.1:${PORT:-3001}/health" || exit 1
 
 USER bun
 ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]

@@ -55,6 +55,12 @@ RUN bun run build
 FROM oven/bun:1.3.3-alpine AS runtime
 WORKDIR /app
 
+# O healthcheck do Coolify corre `curl` (com fallback para `wget`) DENTRO do
+# container, e a imagem do Bun não traz nenhum dos dois de forma utilizável.
+# Foi isto que reprovou o deploy do web e forçou o rollback para a imagem
+# anterior — o build passou, o healthcheck é que nunca podia passar.
+RUN apk add --no-cache curl
+
 ENV NODE_ENV=production
 ENV PORT=3000
 # Obrigatório: o servidor liga a localhost por omissão e ficaria inalcançável
@@ -65,7 +71,15 @@ ENV HOST=0.0.0.0
 # assets estáticos em .output/public. Não é preciso copiar node_modules.
 COPY --from=builder --chown=bun:bun /app/web/.output ./.output
 
-USER bun
 EXPOSE 3000
+
+# 127.0.0.1 e não `localhost`: o `localhost` resolve também para ::1, e o wget
+# do busybox tenta IPv6 primeiro e desiste com "connection refused" contra um
+# servidor que está vivo em IPv4 — exatamente o que se via nos logs do deploy.
+# Forma shell (sem JSON) para o ${PORT} ser expandido em runtime.
+HEALTHCHECK --interval=10s --timeout=5s --start-period=30s --retries=5 \
+  CMD curl -fsS "http://127.0.0.1:${PORT:-3000}/" || exit 1
+
+USER bun
 
 CMD ["bun", ".output/server/index.mjs"]
