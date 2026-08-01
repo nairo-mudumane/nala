@@ -4,7 +4,8 @@
  * **Server only.** Identity lives at Clerk; this package is the thin layer that
  * lets `core` verify a Clerk session token and keep the local `user` mirror in
  * `@nala/db` up to date. It reads `CLERK_SECRET_KEY`, so it must never be
- * imported from `web` — the browser side uses `@clerk/nextjs` directly.
+ * imported from `web` — the browser side uses `@clerk/tanstack-react-start`
+ * directly.
  *
  * - `@nala/auth`          → Clerk client, request authentication, user sync.
  * - `@nala/auth/webhooks` → webhook verification + `user.*` handling.

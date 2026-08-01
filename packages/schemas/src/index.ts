@@ -1,9 +1,10 @@
 /**
  * Public API of `@nala/schemas` — Zod schemas shared between `web` and `core`.
  *
- * - `@nala/schemas`      → every schema (barrel).
- * - `@nala/schemas/auth` → auth input schemas only.
- * - `@nala/schemas/user` → the user as it travels over the wire.
+ * - `@nala/schemas`         → every schema (barrel).
+ * - `@nala/schemas/auth`    → auth input schemas only.
+ * - `@nala/schemas/user`    → the user as it travels over the wire.
+ * - `@nala/schemas/profile` → the professional base profile.
  *
  * Runtime-agnostic by design: no DB, no Bun, no React imports, so both the
  * TanStack Start app and the Hono backend can depend on it. Keep it that way —
@@ -14,4 +15,5 @@
  * boundary.
  */
 export * from "./auth";
+export * from "./profile";
 export * from "./user";

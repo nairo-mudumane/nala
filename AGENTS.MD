@@ -258,7 +258,12 @@ package.
   - Signing out is `<UserButton />` from the SDK, in `/jobs`'s layout header —
     the app has no sign-out of its own.
   - Sign-in UI is Clerk's prebuilt `<SignIn withSignUp />` on `/get-started`,
-    left on hash routing so the whole flow lives under one typed route.
+    kept on hash routing so the whole flow lives under one typed route.
+    **`routing="hash"` must be passed explicitly** — this SDK's `<SignIn>`
+    injects the current pathname as a default `path`, which otherwise selects
+    path routing and sends OAuth back to `/get-started/create/sso-callback`, a
+    URL the route tree does not match. The alternative is a splat route
+    (`app/get-started/$.tsx`); pick one, do not half-do either.
 - **In `core` (Hono):** verify the token with `authenticateRequest()` and
   resolve the local row with `getOrSyncUser()`. `web` and `core` sit on
   different origins, so Clerk's cookie is not sent along — the session token

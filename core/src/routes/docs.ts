@@ -40,6 +40,12 @@ const DOCUMENTATION: GenerateSpecOptions["documentation"] = {
   tags: [
     { name: "System", description: "Service status and metadata." },
     {
+      name: "Profiles",
+      description:
+        "The user's professional base profiles — the material tailored " +
+        "résumés are generated from.",
+    },
+    {
       name: "Webhooks",
       description: "Events pushed in by Clerk (signature-authenticated).",
     },

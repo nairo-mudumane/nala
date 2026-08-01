@@ -4,8 +4,6 @@ import { describeRoute, resolver } from "hono-openapi";
 import { z } from "zod";
 import { ErrorSchema } from "../schemas";
 
-export const WEBHOOK_PATH = "/api/webhooks/clerk";
-
 const WebhookResultSchema = z
   .object({
     received: z.literal(true),
@@ -26,7 +24,7 @@ const WebhookResultSchema = z
  * is what we want for a bad signature *and* for a transient database failure.
  */
 export const webhookRoutes = new Hono().post(
-  WEBHOOK_PATH,
+  "/clerk",
   describeRoute({
     tags: ["Webhooks"],
     summary: "Clerk user events",

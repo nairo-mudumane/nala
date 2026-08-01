@@ -8,6 +8,7 @@ import {
   meRoutes,
   mountDocs,
   OPENAPI_JSON_PATH,
+  profileRoutes,
   rootRoutes,
   webhookRoutes,
 } from "./routes";
@@ -27,13 +28,14 @@ app.use(
   }),
 );
 
-app.route("/", webhookRoutes);
 app.route("/", healthRoutes);
+app.route("/api/webhooks", webhookRoutes);
+app.route("/", rootRoutes);
 
 app.use("*", sessionMiddleware);
 
-app.route("/", rootRoutes);
-app.route("/", meRoutes);
+app.route("/me", meRoutes);
+app.route("/profiles", profileRoutes);
 
 // Last: `generateSpecs` walks the routes already registered on the app.
 mountDocs(app);
