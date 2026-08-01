@@ -1,0 +1,10 @@
+/*
+ * The app's CSS entry point, referenced by `src/app/__root.tsx`.
+ *
+ * The design system itself (Tailwind, theme tokens, fonts) lives in
+ * `@nala/ui`; this file only registers `web`'s own sources so Tailwind sees
+ * the class names used by the routes and components here.
+ */
+@import "@nala/ui/globals.css";
+
+@source "./";

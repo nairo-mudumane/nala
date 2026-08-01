@@ -8,6 +8,13 @@
       "when": 1784477646313,
       "tag": "0000_zippy_deathbird",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1785000000000,
+      "tag": "0001_clerk_identity",
+      "breakpoints": true
     }
   ]
 }

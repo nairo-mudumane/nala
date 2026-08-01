@@ -3,13 +3,13 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { type AuthVariables, sessionMiddleware } from "./auth";
 import {
-  authRoutes,
   DOCS_PATH,
   healthRoutes,
   meRoutes,
   mountDocs,
   OPENAPI_JSON_PATH,
   rootRoutes,
+  webhookRoutes,
 } from "./routes";
 
 const PORT = Number(process.env.PORT ?? 3001);
@@ -22,12 +22,14 @@ app.use(
     origin: TRUSTED_ORIGINS,
     allowHeaders: ["Content-Type", "Authorization"],
     allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    exposeHeaders: ["Content-Length", "Set-Cookie"],
+    exposeHeaders: ["Content-Length"],
     credentials: true,
   }),
 );
 
-app.route("/", authRoutes);
+// Before `sessionMiddleware`: neither carries a session, and resolving one
+// would mean a pointless round trip to Clerk on every webhook and health check.
+app.route("/", webhookRoutes);
 app.route("/", healthRoutes);
 
 app.use("*", sessionMiddleware);
@@ -35,6 +37,7 @@ app.use("*", sessionMiddleware);
 app.route("/", rootRoutes);
 app.route("/", meRoutes);
 
+// Last: `generateSpecs` walks the routes already registered on the app.
 mountDocs(app);
 
 console.log(`  ➜  Docs (Scalar):  http://localhost:${PORT}${DOCS_PATH}`);

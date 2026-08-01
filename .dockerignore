@@ -8,11 +8,11 @@
 *.md
 !README.md
 
-# Segredos — CRÍTICO. Um .env dentro da imagem seria carregado pelo Next e
-# sobreporia silenciosamente as variáveis injetadas pelo Coolify.
+# Segredos — CRÍTICO. Um .env dentro da imagem seria carregado pelo vite.config
+# (loadEnv) e sobreporia as variáveis injetadas pelo Coolify.
 # `web/.env` é um symlink para ../.env criado pelo postinstall: se for copiado
-# fica pendurado dentro da imagem e o `next build` rebenta com ENOENT ao fazer
-# stat dele. Daí os padrões **/ e não apenas os da raiz.
+# fica pendurado dentro da imagem e o build rebenta com ENOENT ao fazer stat
+# dele. Daí os padrões **/ e não apenas os da raiz.
 **/.env
 **/.env.*
 !.env.example
@@ -21,7 +21,9 @@
 # **/node_modules evita arrastar binários nativos darwin-arm64 do host.
 node_modules
 **/node_modules
-web/.next
+web/.output
+web/.nitro
+web/.tanstack
 core/dist
 packages/*/dist
 

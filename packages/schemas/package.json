@@ -8,7 +8,8 @@
   },
   "exports": {
     ".": "./src/index.ts",
-    "./auth": "./src/auth.ts"
+    "./auth": "./src/auth.ts",
+    "./user": "./src/user.ts"
   },
   "dependencies": {
     "zod": "4.4.3"

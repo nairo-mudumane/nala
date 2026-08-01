@@ -101,10 +101,11 @@ web_modules/
 .cache
 .parcel-cache
 
-# Next.js build output
-.next
+# TanStack Start / Vite / Nitro build output
+.output
+.nitro
+.tanstack
 out
-next-env.d.ts
 
 # Turborepo
 .turbo

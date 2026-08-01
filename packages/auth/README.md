@@ -1,77 +1,92 @@
 # @nala/auth
 
-Nala's authentication, built on [Better Auth](https://better-auth.com) + Drizzle
-(`@nala/db`).
+Nala's **server-side** Clerk integration, built on
+[`@clerk/backend`](https://clerk.com/docs/references/backend/overview).
 
-The **tables** live in `@nala/db` (`src/schema/auth.ts`); only the **logic**
-lives here. That keeps a single `drizzle.config.ts` and a single migrations
-folder in the monorepo.
+Identity lives at Clerk: credentials, sessions, email verification, and OAuth
+links never touch this database. The only local trace of a user is the `user`
+mirror table in `@nala/db` (`src/schema/user.ts`), kept in sync by the Clerk
+webhooks — treat it as an eventually-consistent cache, never as the authority.
 
-The **auth server is the `core` app** (Hono, port 3001), which mounts the handler
-at `/api/auth/*`. `web` does not expose any auth routes.
+> **Server only.** This package reads `CLERK_SECRET_KEY`. `web` never imports
+> it — the browser side uses `@clerk/tanstack-react-start` directly.
 
 ## Entry points
 
-| Import                | Where                      | What                               |
-| --------------------- | -------------------------- | ---------------------------------- |
-| `@nala/auth`          | server (Hono, RSC)         | `auth` instance + types            |
-| `@nala/auth/client`   | browser (Client Component) | `authClient` (`better-auth/react`) |
+| Import                 | What                                                            |
+| ---------------------- | --------------------------------------------------------------- |
+| `@nala/auth`           | `clerk`, `authenticateRequest()`, `getOrSyncUser()`, `AuthState` |
+| `@nala/auth/webhooks`  | `verifyClerkWebhook()`, `syncUserFromWebhook()`, `WebhookEvent`  |
+| `@nala/auth/env`       | `TRUSTED_ORIGINS` + the validated environment variables          |
 
 ## Usage in Hono (`core`)
 
-```ts
-import { authRoutes, requireAuth, sessionMiddleware } from "./auth.js";
-
-app.route("/", authRoutes);      // /api/auth/*
-app.use("*", sessionMiddleware); // populates c.var.user / c.var.session
-
-app.get("/me", requireAuth, (c) => c.json({ user: c.var.user }));
-```
-
-## Usage in Next.js (`web`)
-
-Server (Server Component, Server Action) — over HTTP to `core`, memoized per
-request:
+`web` and `core` sit on different origins, so Clerk's session cookie is not sent
+along — the short-lived session token arrives as `Authorization: Bearer <token>`
+and is verified against Clerk's JWKS.
 
 ```ts
-import { getSession, requireSession } from "@/lib/auth";
+import { authenticateRequest, getOrSyncUser } from "@nala/auth";
 
-const session = await getSession();      // null if not authenticated
-const { user } = await requireSession(); // redirects to /sign-in
+const state = await authenticateRequest(ctx.req.raw); // null when anonymous
+if (!state) return ctx.json({ error: "Not authenticated" }, 401);
+
+const user = await getOrSyncUser(state.userId); // local mirror, created on demand
 ```
 
-Browser:
+`getOrSyncUser` doubles as the provisioning step: the first authenticated
+request from a brand-new account inserts the row, which covers both the window
+before the webhook lands and local development, where webhooks never reach
+`localhost` without a tunnel.
+
+## Usage in `web`
+
+Not through this package. `web` uses **`@clerk/tanstack-react-start`**:
 
 ```tsx
-"use client";
-import { authClient } from "@nala/auth/client";
+// src/start.ts — required, or every server-side auth() call throws
+import { clerkMiddleware } from "@clerk/tanstack-react-start/server";
+export const startInstance = createStart(() => ({
+  requestMiddleware: [clerkMiddleware()],
+}));
+```
 
-const { data: session, isPending } = authClient.useSession();
+```ts
+// src/lib/auth.ts — cheap "is there a session?" check, in a server function
+const { isAuthenticated, userId } = await auth();
+```
 
-await authClient.signUp.email({ name, email, password });
-await authClient.signIn.email({ email, password });
-await authClient.signOut();
+```ts
+// src/lib/core.ts — the user as `core` knows them, for protected routes
+const user = await requireUser(); // redirects to /get-started when anonymous
 ```
 
 ## Environment variables
 
 They live in the monorepo's **root** `.env` (see `.env.example`; `web` reads it
 through a `web/.env → ../.env` symlink created in `postinstall`):
-`BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, `AUTH_TRUSTED_ORIGINS`,
-`NEXT_PUBLIC_AUTH_URL` and, optionally, `AUTH_COOKIE_DOMAIN`.
 
-> **`web` never imports `@nala/auth` (root) or `@nala/db` at runtime.** Next
-> runs on Node and `@nala/db` uses `drizzle-orm/bun-sql`, which needs the native
-> `bun:sql` module. Importing types with `import type` is safe.
+| Variable                       | Side    | Notes                                        |
+| ------------------------------ | ------- | -------------------------------------------- |
+| `VITE_CLERK_PUBLISHABLE_KEY`   | public  | Inlined into the browser bundle by Vite       |
+| `CLERK_SECRET_KEY`             | server  | Backend API key — never give it a `VITE_` prefix |
+| `CLERK_WEBHOOK_SIGNING_SECRET` | server  | Verifies the `user.*` webhook payloads        |
+| `AUTH_TRUSTED_ORIGINS`         | server  | CORS allow-list **and** Clerk's `authorizedParties` |
 
-## Changing the config
+> **`web` never imports `@nala/auth` or `@nala/db` at runtime.** `@nala/db` uses
+> `drizzle-orm/bun-sql`, which needs the native `bun:sql` module. Importing
+> types with `import type` is safe.
 
-`@better-auth/cli generate` does not run here (it loads the config with
-jiti/Node and blows up when importing `drizzle-orm/bun-sql`). Instead:
+## Webhooks
 
-```sh
-bun run auth:verify   # compares the Better Auth config against the Drizzle schema
+`core` exposes the endpoint; this package does the verifying and the syncing.
+
+```ts
+import { syncUserFromWebhook, verifyClerkWebhook } from "@nala/auth/webhooks";
+
+const event = await verifyClerkWebhook(ctx.req.raw); // throws on a bad signature
+const changed = await syncUserFromWebhook(event);
 ```
 
-Once `packages/db/src/schema/auth.ts` is aligned, generate and apply the
-migrations in `packages/db` (`bun run db:generate` → `bun run db:migrate`).
+A failed verification must answer `400` so Clerk retries — and so an unsigned
+POST can never write to the database.

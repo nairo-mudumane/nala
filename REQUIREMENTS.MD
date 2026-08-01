@@ -34,7 +34,7 @@
 ### 2.4 Entry Point (Welcome Page)
 
 - Public welcome page (`/`) presenting the value proposition, with a prominent **"Get started"** call to action leading to the entry page (`/get-started`).
-- **A single entry page** (`/get-started`) handles both signing in and creating an account. Sign-in is by **magic link** (emailed, no password); Google and Apple are shown as **"Coming soon"** and disabled until those providers are configured.
+- **A single entry page** (`/get-started`) handles both signing in and creating an account. Sign-in is passwordless, by **emailed link**; social providers (Google, Apple) can be turned on later without a code change, since which methods are offered is Clerk configuration rather than application logic.
 
 ## 3. Internationalization
 

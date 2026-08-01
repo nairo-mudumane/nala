@@ -1,35 +1,31 @@
+import { getOrSyncUser } from "@nala/auth";
+import { meSchema } from "@nala/schemas/user";
 import { Hono } from "hono";
 import { describeRoute, resolver } from "hono-openapi";
-import { z } from "zod";
 import { type AuthVariables, requireAuth } from "../auth";
 import { ErrorSchema } from "../schemas";
 
-export const UserSchema = z
-  .object({
-    id: z.string().meta({ example: "V1StGXR8_Z5jdHi6B-myT" }),
-    name: z.string(),
-    email: z.email(),
-    emailVerified: z.boolean(),
-    image: z.string().nullable(),
-    createdAt: z.iso.datetime(),
-    updatedAt: z.iso.datetime(),
-  })
-  .meta({ id: "User" });
-
-export const MeSchema = z.object({ user: UserSchema }).meta({ id: "Me" });
-
-/** Protected route — returns the current session's user. */
+/**
+ * Protected route — returns the local mirror of the signed-in Clerk user.
+ *
+ * `getOrSyncUser` also doubles as the app's provisioning step: the first
+ * authenticated request from a brand-new account creates the row, so nothing
+ * downstream has to cope with a user that exists at Clerk but not here yet
+ * (see `@nala/db`'s `user` table for why the mirror exists at all).
+ */
 export const meRoutes = new Hono<{ Variables: AuthVariables }>().get(
   "/me",
   describeRoute({
     tags: ["System"],
     summary: "Current session user",
     description:
-      "Requires a valid session cookie, obtained via `/api/auth/sign-in/email`.",
+      "Requires a valid Clerk session token, sent as `Authorization: Bearer " +
+      "<token>` or as Clerk's session cookie on a same-origin request.",
+    security: [{ clerkSessionToken: [] }],
     responses: {
       200: {
         description: "Authenticated user.",
-        content: { "application/json": { schema: resolver(MeSchema) } },
+        content: { "application/json": { schema: resolver(meSchema) } },
       },
       401: {
         description: "No valid session.",
@@ -38,5 +34,10 @@ export const meRoutes = new Hono<{ Variables: AuthVariables }>().get(
     },
   }),
   requireAuth,
-  (c) => c.json({ user: c.var.user }),
+  async (c) => {
+    // biome-ignore lint/style/noNonNullAssertion: requireAuth already rejected the null case.
+    const user = await getOrSyncUser(c.var.userId!);
+
+    return c.json({ user });
+  },
 );

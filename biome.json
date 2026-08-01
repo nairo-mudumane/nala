@@ -10,13 +10,14 @@
     "includes": [
       "**",
       "!**/node_modules",
-      "!**/.next",
+      "!**/.output",
+      "!**/.nitro",
+      "!**/.tanstack",
       "!**/dist",
       "!**/.turbo",
       "!**/coverage",
       "!packages/db/drizzle",
-      "!**/*.gen.ts",
-      "!**/next-env.d.ts"
+      "!**/*.gen.ts"
     ]
   },
   "formatter": {

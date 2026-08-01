@@ -1,10 +1,26 @@
 /**
- * Public API of `@nala/auth` (server side).
+ * Public API of `@nala/auth` — Clerk integration for the monorepo.
  *
- * - `@nala/auth`        → `auth` instance + types (server).
- * - `@nala/auth/client` → `authClient` for React (browser).
+ * **Server only.** Identity lives at Clerk; this package is the thin layer that
+ * lets `core` verify a Clerk session token and keep the local `user` mirror in
+ * `@nala/db` up to date. It reads `CLERK_SECRET_KEY`, so it must never be
+ * imported from `web` — the browser side uses `@clerk/nextjs` directly.
+ *
+ * - `@nala/auth`          → Clerk client, request authentication, user sync.
+ * - `@nala/auth/webhooks` → webhook verification + `user.*` handling.
+ * - `@nala/auth/env`      → `TRUSTED_ORIGINS` and the validated env vars.
  *
  * Always import by package name, never by relative path.
  */
-export { auth, type Auth, type AuthSession, type AuthUser } from "./server";
-export { AUTH_BASE_URL, TRUSTED_ORIGINS } from "./env";
+export {
+  authenticateRequest,
+  clerk,
+  getOrSyncUser,
+  type AuthState,
+} from "./server";
+export {
+  syncUserFromWebhook,
+  verifyClerkWebhook,
+  type WebhookEvent,
+} from "./webhooks";
+export { TRUSTED_ORIGINS } from "./env";

@@ -2,9 +2,16 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
+/*
+ * Self-hosted through Fontsource. `next/font` used to inject `--font-sans` /
+ * `--font-mono` onto `<html>` at render time; there is no such thing outside
+ * Next, so the fonts are part of the design system now and the variables are
+ * bound in `@theme` below.
+ */
+@import "@fontsource-variable/inter";
+@import "@fontsource-variable/geist-mono";
+
 @custom-variant dark (&:is(.dark *));
-@source "../../../apps/**/*.{ts,tsx}";
-@source "../../../components/**/*.{ts,tsx}";
 @source "../**/*.{ts,tsx}";
 
 @theme inline {
@@ -47,7 +54,8 @@
   --radius-2xl: calc(var(--radius) * 1.8);
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
-  --font-sans: var(--font-sans);
+  --font-sans: "Inter Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "Geist Mono Variable", ui-monospace, monospace;
 }
 
 :root {

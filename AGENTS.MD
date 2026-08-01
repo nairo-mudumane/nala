@@ -19,26 +19,30 @@ nala/
 ├── turbo.json            # task pipeline (build, dev, typecheck)
 ├── biome.json            # lint + format (Biome) — single config for the whole monorepo
 ├── tsconfig.json         # extends @nala/typescript-config
-├── web/                  # Next.js frontend app (package: "web")
+├── web/                  # TanStack Start frontend app on Bun (package: "web", port 3000)
 ├── core/                 # Hono backend on Bun (package: "core", port 3001)
 └── packages/
     ├── db/               # @nala/db — Drizzle + PostgreSQL (v18) connection + schemas
-    ├── auth/             # @nala/auth — Better Auth (server + React client)
-    ├── mailer/           # @nala/mailer — transactional email (Resend)
+    ├── auth/             # @nala/auth — Clerk integration (server only)
     ├── schemas/          # @nala/schemas — Zod schemas shared by web + core
-    ├── ui/               # @nala/ui — shared shadcn/ui components
+    ├── ui/               # @nala/ui — shared shadcn/ui components + design tokens + fonts
     └── typescript-config/# @nala/typescript-config
 ```
 
 There is **a single `.env` at the root** for the whole monorepo (`cp .env.example .env`).
 `core` and the `packages/*` scripts consume it via `bun --env-file=...`; `web`
-reads it through Next's native loading via a symlink
-`web/.env → ../.env`, created automatically by `postinstall`. Do not create a
-per-package `.env` with its own contents.
+reads it through the symlink `web/.env → ../.env`, created automatically by
+`postinstall`. Do not create a per-package `.env` with its own contents.
 
-> `bun --env-file` does **not** work for `web`: `next dev` starts a Node server
-> that does not inherit those variables (verified empirically). The symlink is
-> what makes Next load them natively.
+> **Two mechanisms feed `web`, and they are not interchangeable.** Vite exposes
+> only `VITE_`-prefixed variables, and only through `import.meta.env` (inlined
+> into both bundles at build time). Everything else — `CLERK_SECRET_KEY`,
+> `CORE_URL` — is read from `process.env` at runtime, which Vite never
+> populates. `web/vite.config.ts` therefore calls `loadEnv(mode, …, "")` and
+> copies the root `.env` into `process.env` **without overwriting real
+> environment variables**, so dev works from the file and production works from
+> whatever the host injects. Anything a browser must see needs the `VITE_`
+> prefix; anything secret must never have it.
 
 ### 1.2 Workspace conventions
 
@@ -69,11 +73,11 @@ Linting and formatting are managed by **[Biome](https://biomejs.dev)** (`@biomej
 - Does **not** reorder imports (`assist.actions.source.organizeImports: "off"`).
 - 2-space indentation, line width 80, line ending `lf`.
 
-Biome respects `.gitignore` (`vcs.useIgnoreFile`), so `node_modules`, `.next`, `dist`, and `.turbo` are ignored automatically. There are no per-package configs — always run from the root.
+Biome respects `.gitignore` (`vcs.useIgnoreFile`), so `node_modules`, `.output`, `dist`, and `.turbo` are ignored automatically. Generated files are excluded by pattern in `biome.json` (`!**/*.gen.ts`, which covers `web/src/routeTree.gen.ts`). There are no per-package configs — always run from the root.
 
 Apps:
 
-- **`web`** — Next.js frontend (port 3000).
+- **`web`** — TanStack Start frontend (port 3000).
 - **`core`** — Hono backend running on the Bun runtime (port 3001). The entry point `core/src/index.ts` exports `{ port, fetch }` (served directly by Bun, without an adapter). Run it standalone with `bun run --hot core/src/index.ts` or via `bun run dev` (turbo starts both apps).
 
 ### 1.3.2 API Documentation (OpenAPI + Scalar)
@@ -83,12 +87,9 @@ Apps:
 - `GET /docs` — Scalar UI (`@scalar/hono-api-reference`).
 - `GET /openapi.json` — spec generated at runtime.
 
-The spec is the **merge of two sources** (`core/src/openapi.ts`):
+The spec has a **single source** (`core/src/routes/docs.ts`): `core`'s own routes, annotated with `describeRoute()` from **`hono-openapi`** (v1) and **Zod v4** schemas (via `resolver()`) — either from `@nala/schemas` when they cross the app boundary, or from `core/src/schemas.ts` when they do not.
 
-1. `core`'s own routes, annotated with `describeRoute()` from **`hono-openapi`** (v1) and **Zod v4** schemas from `core/src/schemas.ts` (via `resolver()`).
-2. The Better Auth endpoints, obtained from `auth.api.generateOpenAPISchema()` (the `openAPI()` plugin in `packages/auth/src/server.ts`). Their paths come relative to the auth base, so they are prefixed with `/api/auth`, re-tagged as `Authentication`, and the schemas are renamed with the `Auth` prefix (`User` → `AuthUser`) so they do not collide with those of the own routes — the `$ref`s are rewritten along with them.
-
-> The Better Auth plugin runs with `disableDefaultReference: true`: its own reference at `/api/auth/reference` is switched off so there is **a single UI** (`/docs`) covering the whole API. The catch-all `/api/auth/*` is excluded from `generateSpecs` because the real paths come in through the auth fragment.
+> There are no sign-in endpoints to document: authentication happens at Clerk, which publishes its own API reference. What `core` declares instead is the `clerkSessionToken` security scheme (HTTP bearer) in `DOCUMENTATION.components.securitySchemes`; protected routes opt in with `security: [{ clerkSessionToken: [] }]`.
 
 **When adding a new route to `core`:** create `core/src/routes/<route>.ts` (see §1.3.3), wrap the handler with `describeRoute({ tags, summary, responses })`, and use a `tag` **already declared** in `DOCUMENTATION.tags` (`routes/docs.ts`) — an undeclared tag shows up as a stray group in Scalar. Without `describeRoute` the route appears in the spec undocumented.
 
@@ -108,7 +109,7 @@ core/src/
     ├── root.ts       # GET /
     ├── health.ts     # GET /health
     ├── me.ts         # GET /me (protected)
-    ├── auth.ts       # catch-all /api/auth/* (Better Auth handler)
+    ├── webhooks.ts   # POST /api/webhooks/clerk (signature-authenticated)
     └── docs.ts       # GET /docs (Scalar) + GET /openapi.json
 ```
 
@@ -117,7 +118,7 @@ core/src/
 - **Zod schemas specific to one route live in that route's file**; only what is shared goes to `core/src/schemas.ts`.
 - After adding a router, re-export it in `routes/index.ts`.
 
-> **Mounting order in `index.ts` (it matters):** `authRoutes` **before** `sessionMiddleware` (otherwise the Better Auth handler runs with the session already resolved), and `mountDocs(app)` **last** — `generateSpecs` walks the routes already registered on the app.
+> **Mounting order in `index.ts` (it matters):** `webhookRoutes` and `healthRoutes` **before** `sessionMiddleware` — neither carries a session, and resolving one would mean a pointless round trip to Clerk on every event and every health check. `mountDocs(app)` goes **last**: `generateSpecs` walks the routes already registered on the app.
 
 ### 1.4 shadcn/ui components
 
@@ -129,7 +130,14 @@ The shadcn components are **source code** living in the `@nala/ui` package (`pac
 - The target is **always** `packages/ui` (via `-c packages/ui` or by running inside that folder) — never the `web` app.
 - After adding, run `bun install` (new deps) and `bun run typecheck`.
 - Once installed, import it in the app via `@nala/ui/components/<component>`.
-- **Tooltip:** requires wrapping the app with `<TooltipProvider>` in `web/app/layout.tsx`.
+- **Tooltip:** requires wrapping the app with `<TooltipProvider>` in `web/src/app/__root.tsx`.
+
+`@nala/ui` also owns **typography**: `src/styles/globals.css` imports Inter and
+Geist Mono from [Fontsource](https://fontsource.org) and binds them to
+`--font-sans` / `--font-mono` in the `@theme` block. The fonts are self-hosted
+(`.woff2` emitted into the build output) — there is no `next/font` and no call
+out to Google Fonts. To change a typeface, swap the `@fontsource-variable/*`
+dependency and those two variables; nothing in `web` needs to know.
 
 ### 1.5 Database (`@nala/db`)
 
@@ -146,88 +154,160 @@ The whole data layer lives in the **`@nala/db`** package (`packages/db`): the **
   - `bun run db:push` — syncs the schema straight to the DB (dev/prototyping).
   - `bun run db:studio` — opens Drizzle Studio.
 
-<!-- BEGIN:nextjs-agent-rules -->
+### 1.6 The `web` app (TanStack Start)
 
-### 1.6 Authentication (`@nala/auth`)
-
-All authentication lives in the **`@nala/auth`** package (`packages/auth`), built on **[Better Auth](https://better-auth.com)** (`better-auth` pinned at `1.6.23`) with the `drizzleAdapter` over `@nala/db`.
-
-**Separation of responsibilities:** the **tables** (`user`, `session`, `account`, `verification`) live in `@nala/db` (`src/schema/auth.ts`), the **logic** lives in `@nala/auth`. That keeps a single `drizzle.config.ts` and a single migrations folder across the whole monorepo — never create a second Drizzle setup inside `packages/auth`.
-
-- **Auth server:** it is the `core` app (Hono, port 3001). It mounts the handler at `/api/auth/*` (`core/src/auth.ts`) and is the only HTTP authentication endpoint. `web` does **not** have `app/api/auth/[...all]/route.ts`.
-- **Package entry points:**
-  - `@nala/auth` — the `auth` instance + types (`Auth`, `AuthSession`, `AuthUser`). **Server only.**
-  - `@nala/auth/client` — `authClient` (`better-auth/react`) for Client Components.
-- **In Hono (`core`):** `sessionMiddleware` populates `c.var.user`/`c.var.session`; `requireAuth` protects routes (401). See `/me` in `core/src/index.ts` as an example.
-- **In Next.js (`web`):**
-  - Server (Server Components / Actions): `getSession()` / `requireSession()` from `web/lib/auth.ts`. They `fetch` `core` (`/api/auth/get-session`) forwarding the cookies, memoized per request with React's `cache()`.
-  - Browser: `authClient.useSession()`, `authClient.signIn.email(...)`, etc., from `@nala/auth/client` (which points at `NEXT_PUBLIC_AUTH_URL`).
-
-  > **Never import `@nala/auth` (root) or `@nala/db` inside `web`.** Next runs on **Node** and `@nala/db` uses `drizzle-orm/bun-sql`, which needs the native `bun:sql` module — the import blows up at runtime with `Cannot find module 'bun:sql'`. Only `core` (Bun) talks to the DB. Importing **types** with `import type` is safe (it is erased at compile time).
-
-- **Email:** `@nala/auth` sends no email itself — the `magicLink` plugin delegates to `sendMagicLinkEmail` from **`@nala/mailer`** (see §1.7). Any new auth email (verification, password reset) goes in as a template there, not inline in `server.ts`.
-- **IDs:** `advanced.database.generateId` uses `nanoid(21)`, aligned with `TABLE_DEFAULTS` from `packages/db/src/utils.ts`. Any new table should spread `...TABLE_DEFAULTS` to inherit `id`/`createdAt`/`updatedAt`. This affects **only row IDs** — the session `token` is still generated by Better Auth's internal CSPRNG (`generateId(32)`).
-- **Password hashing:** `Bun.password` with `argon2id` (see `emailAndPassword.password` in `server.ts`), replacing Better Auth's default `scrypt`. It depends on the Bun runtime — another reason hashing only happens in `core`.
-- **Module resolution:** `@nala/auth` and `@nala/db` extend `@nala/typescript-config/library.json` (`moduleResolution: "Bundler"`) and use relative imports **without an extension**. With NodeNext's `.js` extension Turbopack does not resolve the `.ts` files and the `web` build fails with `Module not found`.
-- **Changing the Better Auth config** (plugins, extra fields) requires reflecting the schema:
-  1. edit `packages/auth/src/server.ts`;
-  2. run `bun run auth:verify` (in `packages/auth`) — it compares the config against the Drizzle schema and fails if tables/columns are missing;
-  3. update `packages/db/src/schema/auth.ts` until it passes;
-  4. run `bun run db:generate` and `bun run db:migrate` (in `packages/db`).
-
-  > `@better-auth/cli generate` does **not** work in this project: it loads the config with jiti/Node and blows up when importing `drizzle-orm/bun-sql` (which depends on the native `bun:sql` module). Use `auth:verify` in its place.
-
-### 1.7 Transactional email (`@nala/mailer`)
-
-All outgoing email lives in the **`@nala/mailer`** package (`packages/mailer`). No other package talks to an email provider — `@nala/auth` consumes it, it does not embed a sender.
+`web` is a **[TanStack Start](https://tanstack.com/start) app built with Vite 8
+and served by Nitro's `bun` preset** — Bun end to end, no Node runtime anywhere.
+It replaced a Next.js App Router app; if something here looks like Next, it is a
+leftover and should be fixed, not copied.
 
 ```
-packages/mailer/src/
-├── index.ts              # public barrel — transport + every template
-├── env.ts                # RESEND_API_KEY, EMAIL_FROM, MAILER_ENABLED
-├── send.ts               # transport: sendEmail() → Resend REST API
-├── layout.ts             # shared HTML chrome: layout(), button(), escapeHtml()
-└── templates/
-    └── magic-link.ts     # sendMagicLinkEmail()
+web/
+├── vite.config.ts        # tanstackStart + viteReact + tailwindcss + nitro({ preset: "bun" })
+├── public/               # served verbatim at the root (favicon.ico, …)
+└── src/
+    ├── start.ts          # createStart() — global request middleware (Clerk)
+    ├── router.tsx        # getRouter() — one router instance per request
+    ├── routeTree.gen.ts  # generated by the Start plugin; never edit, never lint
+    ├── styles.css        # CSS entry: imports @nala/ui + registers web's Tailwind sources
+    ├── app/              # file-based routes (routesDirectory)
+    │   ├── __root.tsx    # document shell: <html>, ClerkProvider, ThemeProvider
+    │   ├── index.tsx     # /
+    │   ├── get-started.tsx
+    │   └── jobs/
+    │       ├── route.tsx # layout for /jobs/* — the guard lives here
+    │       └── index.tsx # /jobs
+    ├── components/       # app-level components (@/components/*)
+    ├── hooks/            # zustand stores and hooks (@/hooks/*)
+    └── lib/              # auth.ts (Clerk session), core.ts (calls into `core`)
 ```
 
-- **Provider:** [Resend](https://resend.com), called over its REST API with plain `fetch` — **not** the `resend` SDK. The payload is a single JSON POST, so the dependency would not earn its keep. Changing provider means rewriting only `send.ts`.
-- **Config:** `RESEND_API_KEY` and `EMAIL_FROM` in the monorepo's **single root `.env`** (see §1.1). `RESEND_API_KEY` is **optional**: when unset, `sendEmail` logs the message to the console instead of sending, so the app runs locally with no Resend account. `MAILER_ENABLED` reflects which mode you are in.
-- **`EMAIL_FROM` is the usual gotcha.** Resend's default sender `onboarding@resend.dev` is a **sandbox address that only delivers to the Resend account owner's own email** — every other recipient is rejected with `403`, so magic-link sign-in looks silently broken for real users. To email anyone else, verify a domain at [resend.com/domains](https://resend.com/domains) and set `EMAIL_FROM` to an address on it. `send.ts` detects this exact case and explains it in the thrown error.
-- **Server only.** The transport runs on Bun inside `core`. **Never import `@nala/mailer` from `web`** — it would leak `RESEND_API_KEY` into the client bundle.
-- **Adding a template:** create `src/templates/<name>.ts` exporting a `send<Name>Email` that builds its body with `layout()`/`button()` from `layout.ts` and delegates to `sendEmail`, then re-export it from `src/index.ts`.
-- **Copy:** keep user-facing strings in a `COPY` object at the top of each template rather than inlined in the markup, so they can be lifted into translation files later (REQUIREMENTS.MD §3).
-- **HTML:** inline styles only — email clients strip `<style>` blocks. Escape every interpolated value with `escapeHtml()`.
-- Always send a `text` fallback alongside `html`.
+- **Routing is file-based but not Next's.** `routesDirectory` is set to `app`
+  purely to keep the old folder name; the conventions are TanStack Router's:
+  `__root.tsx` instead of `layout.tsx`, `index.tsx` instead of `page.tsx`,
+  `<dir>/route.tsx` for a nested layout (which must render `<Outlet />`),
+  `$param.tsx` instead of `[param]`, `$.tsx` instead of `[...slug]`. Each file
+  exports `const Route = createFileRoute("<path>")({ … })` — **the path string
+  is written and maintained by the plugin**, so never hand-edit it.
+- **`routeTree.gen.ts` is generated** on `vite dev` / `vite build`. It is
+  committed, excluded from Biome (`!**/*.gen.ts`), and must never be edited.
+  After adding or renaming a route, run a build (or start dev) so the types
+  regenerate — until then `createFileRoute` reports the new path as invalid.
+- **There is no `"use client"` / `"use server"`.** Every component runs in both
+  places; there are no React Server Components here. What decides where code
+  runs is `createServerFn()` — its handler body is stripped from the client
+  bundle and becomes an RPC. Anything touching a secret belongs inside one.
+- **Data and guards live on the route, not in the component.** `beforeLoad`
+  runs before any child loader (server-side during SSR, over RPC on client
+  navigations) and what it returns is merged into the route context, so
+  children read it with `Route.useRouteContext()` instead of re-fetching. To
+  bounce a visitor, `throw redirect({ to: "…" })` — only the router catches it.
+- **Search params are typed.** Declare `validateSearch` on the route that owns
+  them and type the result with optional keys (`{ job?: string }`), otherwise
+  every `Link`/`redirect` to that route is forced to pass them. Read them with
+  `Route.useSearch()`, or `useSearch({ from: "/jobs" })` from a component that
+  is only ever mounted under that route.
+- **Links:** `import { Link } from "@tanstack/react-router"` and use `to`, not
+  `href`. `to` is checked against the generated route tree, so a typo is a type
+  error. Use the callback form of `search` (`search={(prev) => …}`) to change
+  one param without dropping the rest.
+- **CSS:** `src/styles.css` is the single entry, referenced from `__root.tsx`
+  as `import appCss from "../styles.css?url"` and injected through the route's
+  `links`. It imports `@nala/ui/globals.css` (Tailwind, tokens, fonts) and adds
+  `@source "./"` so Tailwind v4 scans `web`'s own files — without that line the
+  classes used only here are silently dropped from the stylesheet.
+- **Head tags** come from each route's `head()` (`meta`, `links`), rendered by
+  `<HeadContent />` in `__root.tsx`. There is no `export const metadata`.
+- **Build output** is `.output/` (`.output/public` for assets,
+  `.output/server/index.mjs` for the server), started with
+  `bun .output/server/index.mjs`. It is self-contained — the Dockerfile's
+  runtime stage copies `.output` and nothing else, no `node_modules`.
+- **This is not the Next.js you knew, and TanStack Start moves fast.** Before
+  writing routing, server-function, or middleware code from memory, check the
+  installed version's docs rather than assuming an API still exists.
 
-### 1.8 Shared schemas and forms (`@nala/schemas`)
+### 1.7 Authentication (`@nala/auth`)
 
-Zod schemas that **cross the app boundary** live in **`@nala/schemas`** (`packages/schemas`), so `web` validates a form and `core` validates the same payload from one definition.
+Identity lives at **[Clerk](https://clerk.com)**. The monorepo holds no
+credentials, no sessions, no verification tokens — the only local trace of a
+user is the mirror table described below.
+
+**Separation of responsibilities:** `@nala/auth` (`packages/auth`) is the
+**server-side** integration — verifying tokens, syncing users, handling
+webhooks. `web` talks to Clerk through its own SDK and never imports this
+package.
+
+- **Package entry points** (`@clerk/backend`, **server only**):
+  - `@nala/auth` — `clerk` (Backend API client), `authenticateRequest()`, `getOrSyncUser()`, `TRUSTED_ORIGINS`.
+  - `@nala/auth/webhooks` — `verifyClerkWebhook()`, `syncUserFromWebhook()`.
+  - `@nala/auth/env` — the validated environment variables.
+- **In `web`:** the SDK is **`@clerk/tanstack-react-start`** — never
+  `@clerk/nextjs`, which drags Next.js back in.
+  - `<ClerkProvider>` wraps the document in `src/app/__root.tsx`.
+  - `clerkMiddleware()` is registered once as a global request middleware in
+    `src/start.ts`. Without it every server-side `auth()` call throws.
+  - `src/lib/auth.ts` — `getAuthState()`, the cheap "is there a session?" check
+    used by `/get-started`. It never leaves the process.
+  - `src/lib/core.ts` — `coreFetch()` / `getCurrentUser()` / `requireUser()`,
+    for routes that need the user themselves. `requireUser()` in a `beforeLoad`
+    is the standard guard. It distinguishes **`anonymous`** (no Clerk session →
+    redirect to `/get-started`) from **`unavailable`** (there *is* a session but
+    `core` did not answer → throw, and let the route's `errorComponent` show
+    it). Never collapse the two: redirecting a signed-in visitor to the entry
+    page only sends them back, and the browser loops.
+  - Signing out is `<UserButton />` from the SDK, in `/jobs`'s layout header —
+    the app has no sign-out of its own.
+  - Sign-in UI is Clerk's prebuilt `<SignIn withSignUp />` on `/get-started`,
+    left on hash routing so the whole flow lives under one typed route.
+- **In `core` (Hono):** verify the token with `authenticateRequest()` and
+  resolve the local row with `getOrSyncUser()`. `web` and `core` sit on
+  different origins, so Clerk's cookie is not sent along — the session token
+  travels as `Authorization: Bearer <token>`, minted server-side by
+  `coreFetch()`.
+- **The `user` table is a cache, not the authority** (`@nala/db`,
+  `src/schema/user.ts`). Its `id` is the Clerk user id, so it deliberately does
+  **not** spread `TABLE_DEFAULTS` (which would generate a local nanoid). It is
+  written by the `user.*` webhooks and by `getOrSyncUser()`'s lazy fallback —
+  never treat it as the source of truth for identity.
+- **Environment variables** (root `.env`, see §1.1):
+  `VITE_CLERK_PUBLISHABLE_KEY` is public and inlined into the browser bundle;
+  `CLERK_SECRET_KEY` and `CLERK_WEBHOOK_SIGNING_SECRET` are server-only and
+  must **never** carry a `VITE_` prefix. `AUTH_TRUSTED_ORIGINS` is one list
+  serving two purposes: the CORS allow-list and Clerk's `authorizedParties`.
+
+  > **Never import `@nala/auth` or `@nala/db` inside `web`.** `@nala/db` uses
+  > `drizzle-orm/bun-sql`, which needs the native `bun:sql` module, and
+  > `@nala/auth` reads `CLERK_SECRET_KEY`. Only `core` talks to either.
+  > Importing **types** with `import type` is safe (erased at compile time).
+
+- **Module resolution:** `@nala/auth` and `@nala/db` extend
+  `@nala/typescript-config/library.json` (`moduleResolution: "Bundler"`) and
+  use relative imports **without an extension**.
+
+### 1.8 Shared schemas (`@nala/schemas`)
+
+Zod schemas that **cross the app boundary** live in **`@nala/schemas`** (`packages/schemas`), so `web` and `core` describe the same payload from one definition.
 
 ```
 packages/schemas/src/
 ├── index.ts   # barrel
-└── auth.ts    # emailSchema, signInSchema, signUpSchema + inferred types
+├── auth.ts    # auth input schemas
+└── user.ts    # userSchema / meSchema — the user as it travels over the wire
 ```
 
-- **Runtime-agnostic by design:** no DB, no Bun, no React imports — that is what lets both the Next.js app and the Hono backend depend on it. A server-only import here breaks the `web` build.
+- **Runtime-agnostic by design:** no DB, no Bun, no React imports — that is what lets both the TanStack Start app and the Hono backend depend on it. A server-only import here breaks the `web` build.
 - **Where a schema belongs:** shared between apps → `@nala/schemas`. Used by several `core` routes only → `core/src/schemas.ts`. Used by one route only → that route's file (see §1.3.3).
-- Zod is pinned at `4.4.3` across the monorepo to match the copy `better-auth` resolves — a second Zod copy produces confusing "two different Zod instances" type errors.
-- Normalisation belongs **in the schema**, not at call sites: `emailSchema` trims and lower-cases, because Better Auth looks accounts up by email and linking depends on an exact match.
+- Zod is pinned at `4.4.3` across the monorepo — a second Zod copy produces confusing "two different Zod instances" type errors.
+- `core` serialises its responses from these schemas and publishes them in the OpenAPI spec through `resolver()`; `web` parses the same response with `safeParse` instead of restating the shape.
 - Validation messages are user-facing, so keep them as literals in the schema, ready to lift into translation files (REQUIREMENTS.MD §3).
 
-**Forms in `web`** use **react-hook-form** with `zodResolver` from `@hookform/resolvers/zod`:
-
-- This shadcn registry is **Base UI**-based: there is **no `form` component** (`shadcn add form` silently adds nothing). Use the **`Field`** primitives instead — `Field`, `FieldLabel`, `FieldDescription`, `FieldError`, `FieldSeparator` from `@nala/ui/components/field`.
-- `FieldError` takes react-hook-form's errors directly: `<FieldError errors={[form.formState.errors.email]} />`.
-- Put `noValidate` on the `<form>` so Zod owns validation rather than the browser's native bubbles.
-- When one component renders **different schemas** by mode, mount it with `key={mode}` — remounting swaps the resolver and clears errors left from the other mode.
-- Client-side validation is a **UX affordance only, never the trust boundary** — always re-validate on the server.
-
-### 1.9 This is NOT the Next.js you know
-
-This version has breaking changes — APIs, conventions, and file structure may differ from your training knowledge. Read the relevant guide in `web/node_modules/next/dist/docs/` before writing code. Pay attention to deprecation warnings.
-<!-- END:nextjs-agent-rules -->
+**Forms in `web`:** this shadcn registry is **Base UI**-based, so there is **no
+`form` component** (`shadcn add form` silently adds nothing). Use the **`Field`**
+primitives instead — `Field`, `FieldLabel`, `FieldDescription`, `FieldError`,
+`FieldSeparator` from `@nala/ui/components/field` — and put `noValidate` on the
+`<form>` so Zod owns validation rather than the browser's native bubbles.
+Client-side validation is a **UX affordance only, never the trust boundary** —
+always re-validate on the server.
 
 NOTES:
 

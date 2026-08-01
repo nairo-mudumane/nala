@@ -53,13 +53,20 @@ packages/db/
     ├── client.ts       # Drizzle client over Bun.SQL
     ├── env.ts          # DATABASE_URL validation
     └── schema/         # one file per table + barrel (index.ts)
-        └── auth.ts     # Better Auth tables (owned by @nala/auth)
+        └── user.ts     # local mirror of the Clerk user
 ```
 
-> The authentication tables (`user`, `session`, `account`, `verification`) live
-> here, but their shape is dictated by `@nala/auth`. After touching the Better
-> Auth config, run `bun run auth:verify` in `packages/auth` before generating
-> migrations.
+> **There are no authentication tables.** Identity lives at
+> [Clerk](https://clerk.com) — no sessions, no credentials, no verification
+> tokens. The `user` table is a **cache** of the Clerk user, keyed by the Clerk
+> id (`user_...`), so the app's own tables can hold a real foreign key. Because
+> that id comes from Clerk, `user` deliberately does **not** spread
+> `TABLE_DEFAULTS` (which generates a local nanoid).
+>
+> It is written by the `user.*` webhooks handled in `core`, plus the
+> `getOrSyncUser()` fallback in `@nala/auth`. To mirror an extra Clerk field,
+> change `schema/user.ts`, `syncUserFromWebhook`, and `getOrSyncUser` together,
+> then generate and apply the migration.
 
 To add a table: create `src/schema/<table>.ts` and re-export it in
 `src/schema/index.ts`.

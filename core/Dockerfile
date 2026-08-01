@@ -17,7 +17,6 @@ COPY core/package.json                       core/package.json
 COPY web/package.json                        web/package.json
 COPY packages/auth/package.json              packages/auth/package.json
 COPY packages/db/package.json                packages/db/package.json
-COPY packages/mailer/package.json            packages/mailer/package.json
 COPY packages/schemas/package.json           packages/schemas/package.json
 COPY packages/ui/package.json                packages/ui/package.json
 COPY packages/typescript-config/package.json packages/typescript-config/package.json
@@ -27,25 +26,24 @@ COPY packages/typescript-config/package.json packages/typescript-config/package.
 # corta as devDependencies. O core não precisa de build step nem de tsc.
 RUN bun install --frozen-lockfile --ignore-scripts --production \
     --filter=core --filter='@nala/db' --filter='@nala/auth' \
-    --filter='@nala/mailer'
+    --filter='@nala/schemas'
 
 # --------------------------------------------------------------- runtime
 FROM base AS runtime
 WORKDIR /app
 
-COPY --from=deps /app/node_modules               ./node_modules
-COPY --from=deps /app/core/node_modules          ./core/node_modules
-COPY --from=deps /app/packages/auth/node_modules ./packages/auth/node_modules
-COPY --from=deps /app/packages/db/node_modules   ./packages/db/node_modules
-# packages/mailer não tem node_modules próprio: só depende do fetch nativo do
-# Bun, e as suas devDependencies não são instaladas com --production.
+COPY --from=deps /app/node_modules                  ./node_modules
+COPY --from=deps /app/core/node_modules             ./core/node_modules
+COPY --from=deps /app/packages/auth/node_modules    ./packages/auth/node_modules
+COPY --from=deps /app/packages/db/node_modules      ./packages/db/node_modules
+COPY --from=deps /app/packages/schemas/node_modules ./packages/schemas/node_modules
 
 # Sem build step: o Bun executa TypeScript diretamente.
 COPY package.json bun.lock ./
-COPY core          ./core
-COPY packages/auth ./packages/auth
-COPY packages/db     ./packages/db
-COPY packages/mailer ./packages/mailer
+COPY core             ./core
+COPY packages/auth    ./packages/auth
+COPY packages/db      ./packages/db
+COPY packages/schemas ./packages/schemas
 
 COPY core/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh

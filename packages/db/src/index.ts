@@ -2,7 +2,7 @@
  * Public API of the `@nala/db` package.
  *
  * - `db`     — Drizzle client already connected to PostgreSQL.
- * - schema   — tables, enums, and inferred types (`User`, `Session`, ...).
+ * - schema   — tables, enums, and inferred types (`User`, ...).
  * - Drizzle operators (`eq`, `and`, `sql`, ...) re-exported for convenience.
  *
  * Always import by package name: `import { db, user, eq } from "@nala/db"`.
