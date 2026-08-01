@@ -27,8 +27,6 @@ app.use(
   }),
 );
 
-// Before `sessionMiddleware`: neither carries a session, and resolving one
-// would mean a pointless round trip to Clerk on every webhook and health check.
 app.route("/", webhookRoutes);
 app.route("/", healthRoutes);
 
@@ -40,10 +38,8 @@ app.route("/", meRoutes);
 // Last: `generateSpecs` walks the routes already registered on the app.
 mountDocs(app);
 
-console.log(`  ➜  Docs (Scalar):  http://localhost:${PORT}${DOCS_PATH}`);
-console.log(
-  `  ➜  OpenAPI spec:   http://localhost:${PORT}${OPENAPI_JSON_PATH}`,
-);
+console.log(`Docs (Scalar):  http://localhost:${PORT}${DOCS_PATH}`);
+console.log(`OpenAPI spec:   http://localhost:${PORT}${OPENAPI_JSON_PATH}`);
 
 export default {
   port: PORT,
